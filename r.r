@@ -114,6 +114,7 @@ melt(datax, varnames=LETTERS[24:26],value.name="Val")
 datax <- list(agi="AT1G10000", GO=c("GO:1010","GO:2020"), KEGG=c("0100", "0200", "0300"))
 melt(datax)
 
+
 #R的内存管理
 obj1 <- matrix(0, nrow=4000, ncol=4000)
 obj2 <- matrix(0, nrow=4000, ncol=4000)
