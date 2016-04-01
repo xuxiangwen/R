@@ -1,3 +1,6 @@
+#--------------------------------
+#基础设置
+#--------------------------------
 #设置当前的工作路径
 RR_path <- 'D:/xujian/project/RR/code'
 RR_path <- '/home/poc'
@@ -8,6 +11,10 @@ setwd(RR_code_path)
 #设置简体中文作为本地
 Sys.setlocale(,"CHS")
 Sys.setlocale(locale='Chinese');
+
+#设置代理
+Sys.setenv(http_proxy="http://web-proxy.rose.hp.com:8080")
+Sys.setenv(https_proxy="https://web-proxy.rose.hp.com:8080")
 
 #保存已安装的R包
 old_packages <- installed.packages()[,1]
@@ -43,79 +50,9 @@ for (package in setdiff(old_packages, new_pacakges)){
 traceback()
 options(error = recover)
 
-#Factor因子的应用
-status <- c('Poor', 'Imporved', 'Excellent', 'Poor')
-status1 <- as.factor(status);status1
-status2 <- factor(status);status2
-status3 <- factor(status, order=T);status3
-status4 <- factor(status, order=T, levels=c('Poor','Imporved','Excellent'));status4
-levels(status4) #得到Levels名称
-level_Values <- 1:length(levels(status4))  #得到Levels对应的数值
-names(level_Values) <- levels(status4);   level_Values                     
-labels(status4) #得到数据标签
-nlevels(status4)  #得到Leveles的个数
-summary(status4)  #得到各个Leveles的item个数
-as.numeric(status4)
-as.integer(status4)
-status4[1]>status4[2]  #Facotr 可以直接比较大小
-status4[3]>status4[4]
-
-as.integer(status3)
-as.integer(status2)
-
-class(status4)
-
-#小技巧：如果你不想跑那一段代码，可以放到if(FALSE)，解决R没有多行注释的问题
-if(FALSE) {
-  status <- c('Poor', 'Imporved', 'Excellent', 'Poor')
-  status1 <- as.factor(status);status1
-  status2 <- factor(status);status2
-  status3 <- factor(status, order=T);status3
-  status4 <- factor(status, order=T, levels=c('Poor','Imporved','Excellent'));status4  
-}
-
-#判断第一个向量中的内容是否在第二个向量中出现过
-names(iris) %in% c('Sepal.Length', 'Petal.Width')
-iris$Species %in% c('setosa', 'virginica')
-
-#Reshape的一些应用
-library(reshape)
-
-mydata <- scan()
-1 1 5  6 
-1 2 3  5 
-2 1 6  1 
-2 2 2  4 
-
-
-mydata <- data.frame(matrix(mydata, nrow=4, byrow=T))
-#, colClasses(mydata) < c('character', 'character', 'numeric', 'numeric') 
-colnames(mydata) <- c('id', 'time', 'X1', 'X2') 
-
-#行转列
-md <- melt(mydata, id=c('id', 'time'));md
-
-#列转行
-cast(md, id+time~variable)
-cast(md, id+variable~time)
-cast(md, id~variable+time)
-
-#列转行，并聚合
-cast(md, id~variable, mean)
-cast(md, time~variable, mean)
-cast(md, id~time, mean)
-
-#把array变成data frame
-datax <- array(1:8, dim=c(2,2,2)) 
-melt(datax) 
-melt(datax, varnames=LETTERS[24:26],value.name="Val")
-
-#把list变成data frame
-datax <- list(agi="AT1G10000", GO=c("GO:1010","GO:2020"), KEGG=c("0100", "0200", "0300"))
-melt(datax)
-
-
+#--------------------------------
 #R的内存管理
+#--------------------------------
 obj1 <- matrix(0, nrow=4000, ncol=4000)
 obj2 <- matrix(0, nrow=4000, ncol=4000)
 obj3 <- matrix(0, nrow=4000, ncol=4000)
@@ -219,6 +156,86 @@ str(get('x', envir=environment(Fn)))
 #You can see here that even if the original data have been removed, 
 #there still exists a local copy of it in the evaluation frame 
 #during the call to ecdf.
+
+#--------------------------------
+#Factor因子的应用
+#--------------------------------
+status <- c('Poor', 'Imporved', 'Excellent', 'Poor')
+status1 <- as.factor(status);status1
+status2 <- factor(status);status2
+status3 <- factor(status, order=T);status3
+status4 <- factor(status, order=T, levels=c('Poor','Imporved','Excellent'));status4
+levels(status4) #得到Levels名称
+level_Values <- 1:length(levels(status4))  #得到Levels对应的数值
+names(level_Values) <- levels(status4);   level_Values                     
+labels(status4) #得到数据标签
+nlevels(status4)  #得到Leveles的个数
+summary(status4)  #得到各个Leveles的item个数
+as.numeric(status4)
+as.integer(status4)
+status4[1]>status4[2]  #Facotr 可以直接比较大小
+status4[3]>status4[4]
+
+as.integer(status3)
+as.integer(status2)
+
+class(status4)
+class(status3)
+
+#小技巧：如果你不想跑那一段代码，可以放到if(FALSE)，解决R没有多行注释的问题
+if(FALSE) {
+  status <- c('Poor', 'Imporved', 'Excellent', 'Poor')
+  status1 <- as.factor(status);status1
+  status2 <- factor(status);status2
+  status3 <- factor(status, order=T);status3
+  status4 <- factor(status, order=T, levels=c('Poor','Imporved','Excellent'));status4  
+}
+
+#判断第一个向量中的内容是否在第二个向量中出现过
+names(iris) %in% c('Sepal.Length', 'Petal.Width')
+iris$Species %in% c('setosa', 'virginica')
+
+#--------------------------------
+# 数据变形处理（行转列，列转行）
+#--------------------------------
+#Reshape的一些应用
+library(reshape)
+
+mydata <- scan()
+1 1 5  6 
+1 2 3  5 
+2 1 6  1 
+2 2 2  4 
+
+
+mydata <- data.frame(matrix(mydata, nrow=4, byrow=T))
+#, colClasses(mydata) < c('character', 'character', 'numeric', 'numeric') 
+colnames(mydata) <- c('id', 'time', 'X1', 'X2') 
+mydata
+
+#行转列
+md <- melt(mydata, id=c('id', 'time'));md
+
+#列转行
+cast(md, id+time~variable)
+cast(md, id+variable~time)
+cast(md, id~variable+time)
+
+#列转行，并聚合
+cast(md, id~variable, mean)
+cast(md, time~variable, mean)
+cast(md, id~time, mean)
+
+#把array变成data frame
+datax <- array(1:8, dim=c(2,2,2)) 
+melt(datax) 
+melt(datax, varnames=LETTERS[24:26],value.name="Val")
+
+#把list变成data frame
+datax <- list(agi="AT1G10000", GO=c("GO:1010","GO:2020"), KEGG=c("0100", "0200", "0300"))
+melt(datax)
+
+
 
 #############################################
 # plyr
