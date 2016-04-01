@@ -6,10 +6,16 @@
 
 #正态分布
 x <- 1：50
-theta <- c(1, 2)
-y <- cbind(rep(1, length(x)), x) %*% theta
-d <- data.frame(x, y) + rnorm(length(x), 0 ,1)
-p <- ggplot(d, aes(x=x, y=y))
-p + geom_point()
+theta <- c(5, 2)
+y <- cbind(rep(1, length(x)), x) %*% theta + rnorm(length(x), 0 ,5)
+d <- data.frame(x, y) 
 fit <- lm(y~x)
+fit.coef <- coef(fit)
 summary(fit)
+
+p <- ggplot(d, aes(x=x, y=y))
+p + geom_point() + geom_abline(intercept=fit.coef(0))
+
+
+
+
