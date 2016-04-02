@@ -4065,3 +4065,30 @@ house <- function() {
 
 
 rlen(1.8)
+
+
+#独立性测试
+library(ggplot2)
+independence.test <- function(n, fun=rnorm) {
+  x <- fun(n, 0, 1)
+  y <- fun(n, 0, 1)
+  d <- data.frame(x, y)
+  p <- ggplot(d, aes(x=x, y=y))
+  print(p + geom_point())
+  x %*% y 
+}
+independence.test(10)
+independence.test(50)
+independence.test(100)
+independence.test(500)
+independence.test(2000)
+independence.test(10000)
+independence.test(50000)
+
+independence.test(10, fun=runif)
+independence.test(50, fun=runif)
+independence.test(100, fun=runif)
+independence.test(500, fun=runif)
+independence.test(2000, fun=runif)
+independence.test(10000, fun=runif)
+independence.test(50000, fun=runif)
