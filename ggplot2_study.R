@@ -58,11 +58,11 @@ p + geom_text(aes(family=c("serif", "mono")[am+1]))
 
 
 #
-fdata.frame(x=c(x1,x2,x3), y=rep(y,3), type=rep(LETTERS[1:3], each=length(y)
+#data.frame(x=c(x1,x2,x3), y=rep(y,3), type=rep(LETTERS[1:3], each=length(y)))
 p
 
 #蝴蝶图
-theta data.frame(x=radius*sin(theta), y=radius*cos(theta))
+#theta data.frame(x=radius*sin(theta), y=radius*cos(theta))
 ggplot(dd, aes(x, y))+geom_path()+theme_null()+xlab("")+ylab("")
 
 
@@ -576,6 +576,7 @@ fplot %+% both1 + aes(x = lcarat, colour = color) + geom_smooth(stat = "identity
 library(devtools)
 source_gist("https://gist.github.com/4578531")
 
+
 m <- ggplot(movies, aes(year, rating))
 m + stat_summary(fun.y = "median", geom = "line")
 m + stat_summary(fun.data = "median_hilow", geom = "smooth")
@@ -778,3 +779,26 @@ p <- p + geom_point(aes(timepoint, stock),
                     size = 5,
                     colour = 'red',
                     alpha = 0.5)
+
+#------------------------------------------------------------
+# multiple plots per page
+# 一页多图
+#------------------------------------------------------------
+require(ggplot2)
+require(grid)
+#####现将图画好，并且赋值变量，储存#####
+a <- ggplot(mtcars, aes(mpg, wt, colour = factor(cyl))) + geom_point()
+b <- ggplot(diamonds, aes(carat, depth, colour = color)) + geom_point()
+c <- ggplot(diamonds, aes(carat, depth, colour = color)) + geom_point() + 
+  facet_grid(.~color,scale = "free") 
+
+########新建画图页面###########
+grid.newpage()  ##新建页面
+pushViewport(viewport(layout = grid.layout(2,2))) ####将页面分成2*2矩阵
+vplayout <- function(x,y){
+  viewport(layout.pos.row = x, layout.pos.col = y)
+}
+print(c, vp = vplayout(1,1:2))   ###将（1,1)和(1,2)的位置画图c
+print(b, vp = vplayout(2,1))   ###将(2,1)的位置画图b
+print(a, vp = vplayout(2,2))  ###将（2,2)的位置画图a
+#dev.off() ##画下一幅图，记得关闭窗口
