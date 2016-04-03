@@ -36,7 +36,7 @@ getNormDensity <- function(params) {
   sigmas <- params$sigma
   x <- seq(-max(sigmas)*3, max(sigmas)*3, min(sigmas)/10)
   d <- cbind(x, apply(params, 1, function(param) dnorm(x, param["mu"], param["sigma"])))
-  colnames(d) <- c("x", sigmas)
+  colnames(d) <- c("x", paste(params$mu, params$sigma))
   d <- as.data.frame(d)
   data <- melt(d, id=c('x'))
   names(data) <- c("x", "group", "y")
@@ -55,7 +55,7 @@ getBinomDensity <- function(params) {
   d <- as.data.frame(d)
   data <- melt(d, id=c('x'))
   names(data) <- c("x", "group", "y")
-  params.norm <- data.frame(mu=params$size * params$prob, sigma=sqrt(params$size * params$prob * (1-params$prob)))
+  params.norm <- data.frame(mu=params$size * params$prob, sigma=round(sqrt(params$size * params$prob * (1-params$prob)),2))
   data.norm <- getNormDensity(params.norm)  
   rbind(data, data.norm)
 }
