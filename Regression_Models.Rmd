@@ -1,0 +1,22 @@
+---
+title: "Regression Models for Data Science in R"
+output: html_document
+---
+
+
+```{r}
+library(UsingR); 
+library(reshape); 
+```
+
+Francis Galton’s height data 
+Francis Galton, the 19th century polymath, can be credited with discovering regression. In his landmark paper Regression Toward Mediocrity in Hereditary Stature he compared the heights of parents and their children. He was particularly interested in the idea that the children of tall parents tended to be tall also, but a little shorter than their parents. Children of short parents tended to be short, but not quite as short as their parents. He referred to this as “regression to mediocrity” (or regression to
+the mean).
+我的理解，使因为身高受父母影响的相关系数0.6463<1,这样Intercept的影响就体现出来了。为何身高的关系这样，可能在于生物学上，每个物种都有一个自身理想的身高，如果太高，太矮，都不容易生存。所以就必须回归平均，但这样或许有些牵强。
+
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
