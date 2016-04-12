@@ -1,0 +1,81 @@
+---
+title: "eipi10 arsenal"
+output: html_document
+---
+
+本文件用于整理学习工作中得到一些能够方便实用的统计，机器学习方法。希望这个文档能够做到以下几点。
+
+- 把对算法关键妙处，也就是精华之处展示出来。用markdown可以把这些东西展示出来，如果单纯R代码则没有这个表现力。另外，通过本文，也能够熟练掌握markdown的实用技巧，比如如何画图，如何编写数学公式。这些技巧对于一个数据科学家来说也是至关重要。
+-  方便宜用，需要能够在工作中用的起来。取名军火库也是这个用意。武器一定要好用，威力大才行。
+-  通俗易懂，从中可以不断添加自己的理解，真正把这些方法变成自己的方法。一个简单的评价标准是，某个方法整理完后，3个月，甚至半年后，还能快速的通过阅读该文档回忆起来。
+
+目录：
+
+- 1 R语言
+    - 1.1 基本设置
+    - 1.2 markdown
+        - 1.2.1 printr
+
+- 2 统计学
+    - 2.1 方差分析
+    - 2.2 一元线性回归
+    - 2.3 二元线性回归
+
+- 3 机器学习
+    - 3.1 逻辑回归
+    - 3.2 决策树
+    - 3.3 随机森林
+    - 3.4 SVM
+    - 3.5 神经网络
+        - 3.5.1 感知器
+  
+- 优化  
+
+# 1 R语言
+## 1.1 基本设置
+## 1.2 markdown
+### 1.2.1 printr
+
+用于在rmakrdown里面，对matrices, data frames, and contingency tables等生成表格。源代码和详细介绍见<https://github.com/yihui/printr>。
+
+默认的格式，生成的样子很丑。
+
+如果不用printr
+```{r}
+head(iris,5)
+```
+
+如果调用knitr::kable，效果不错，但显得还有些麻烦。
+```{r}
+knitr::kable(head(iris,5),digits =4 , caption="A table produced by printr.")
+```
+
+如果使用printr, 我们可以直接得到上面的效果。
+
+printr安装方法：
+```r
+install.packages(
+  'printr',
+  type = 'source',
+  repos = c('http://yihui.name/xran', 'http://cran.rstudio.com')
+)
+```
+
+在看输出结果，好看多了。
+```{r}
+library(printr)
+head(iris,5)
+
+```
+
+```{r}
+summary(cars)
+```
+
+You can also embed plots, for example:
+
+```{r, echo=FALSE}
+plot(cars)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
