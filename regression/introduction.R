@@ -438,3 +438,64 @@ anova(fit1, fit2)
 ##   Res.Df RSS Df Sum of Sq    F Pr(>F)
 ## 1     28 183                         
 ## 2     26 156  2      27.2 2.27   0.12
+
+#--------------------------------------------------
+# Generalized Linear Models
+#--------------------------------------------------
+
+#Visualizing fitting logistic regression curves
+#检查不同的参数对曲线的影响
+x = seq(-10, 10, length = 1000)
+beta0 = 0; beta1s = seq(.25, 1.5, by = .1)
+plot(c(-10, 10), c(0, 1), type = "n", xlab = "X", ylab = "Probability", frame = FALSE)
+sapply(beta1s, function(beta1) {
+  y = 1 / (1 + exp( -1 * ( beta0 + beta1 * x ) ))
+  lines(x, y, type = "l", lwd = 3)
+})
+
+x = seq(-10, 10, length = 1000)
+beta0s = seq(-2, 2, by = .5); beta1 = 1
+plot(c(-10, 10), c(0, 1), type = "n", xlab = "X", ylab = "Probability", frame = FALSE)
+sapply(beta0s, function(beta0) {
+  y = 1 / (1 + exp( -1 * ( beta0 + beta1 * x ) ))
+  lines(x, y, type = "l", lwd = 3)
+})
+
+x = seq(-10, 10, length = 1000)
+beta0 = 0; beta1 = 1
+p = 1 / (1 + exp(-1 * (beta0 + beta1 * x)))
+y = rbinom(prob = p, size = 1, n = length(p))
+plot(x, y, frame = FALSE, xlab = "x", ylab = "y")
+lines(lowess(x, y), type = "l", col = "blue", lwd = 3)
+fit = glm(y ~ x, family = binomial)
+lines(x, predict(fit, type = "response"), lwd = 3, col = "red")
+
+#Poisson distribution
+par(mfrow = c(1, 3))
+plot(0 : 10, dpois(0 : 10, lambda = 2), type = "h", frame = FALSE)
+plot(0 : 20, dpois(0 : 20, lambda = 10), type = "h", frame = FALSE)
+plot(0 : 200, dpois(0 : 200, lambda = 100), type = "h", frame = FALSE)
+
+#Bonus material
+## simulate the data 画一个曲线，模拟线段走势，平滑曲线
+n <- 500; x <- seq(0, 4 * pi, length = n); y <- sin(x) + rnorm(n, sd = .3)
+## the break points of the spline fit
+knots <- seq(0, 8 * pi, length = 20);
+## building the regression spline terms
+splineTerms <- sapply(knots, function(knot) (x > knot) * (x - knot))
+## adding an intercept and the linear term
+xMat <- cbind(1, x, splineTerms)
+## fit the model, notice the intercept is in xMat so we have -1
+
+yhat <- predict(lm(y ~ xMat - 1))
+## perform the plot
+plot(x, y, frame = FALSE, pch = 21, bg = "lightblue", cex = 2)
+lines(x, yhat, col = "red", lwd = 2)
+
+#adding squared terms 曲线更加的平滑
+splineTerms <- sapply(knots, function(knot) (x > knot) * (x - knot)^2)
+xMat <- cbind(1, x, x^2, splineTerms)
+yhat <- predict(lm(y ~ xMat - 1))
+plot(x, y, frame = FALSE, pch = 21, bg = "lightblue", cex = 2)
+lines(x, yhat, col = "red", lwd = 2)
+
