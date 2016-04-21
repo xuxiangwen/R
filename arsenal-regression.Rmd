@@ -714,29 +714,38 @@ J = \frac{ (y - X\theta)^t(y - X\theta) }{2 m}
 $$
 
 ```{r, fig.height=5, fig.width=5, echo = FALSE, results='hide'}
-lmCost <- function(X, y, theta=rep(1, ncol(X)+1)) {
-  newX <- cbind(1, as.matrix(X))
+library(dplyr)
+lmCost <- function(X, y, theta=rep(1, NCOL(X)+1)) {
+  newX <- cbind(1, as.matrix(X)) 
   e <- newX %*% theta - y
-  (t(e) %*% e)/2/nrow(X)
+  (t(e) %*% e)/2/nrow(newX )
 }
 
 #梯度下降的好处是，当梯度比较大的时候，下降的比较快，当接近最小值，梯度就变得比较小，下降的慢，这杨就能接近最小值了
 #这个版本，梯度下降的速度实在太慢了
-lmGradientDescent <- function(X, y, num_iters, alpha=0.01) {
-  m <- nrow(X)
-  newX <- cbind(1, as.matrix(X))  
+lmGradientDescent <- function(X, y, num_iters, alpha=0.01, scale=TRUE, center=TRUE) {
+  newX <- cbind(1, as.matrix(scale(X, scale=scale, center=center)))   
+  m <- nrow(newX)
   cost <- numeric(0)
-  theta <- rep(1, ncol(X)+1)
+  theta <- rep(1, ncol(newX))
   
-  print(m)
-  
-  for (i in 1:num_iters) { #for loop for first dimension
+  for (i in 1:num_iters) {
     theta <- theta -  t(newX) %*% (newX %*% theta - y)*alpha/m 
-    cost <- lmCost(X, y, theta)
-    print(cost)
+    cost <- lmCost(newX[,-1], y, theta)
+    print(paste0(i, ": ", cost))
   }
   
-  names(theta) = colnames(X)
+  if (scale) theta[-1] <- sapply(1:ncol(X), function(i) theta[i+1]/sd(X[,i])) 
+  if (center) {
+    if (scale) {
+      theta[1] <- theta[1] - sapply(1:ncol(X), function(i) theta[i+1]*mean(X[,i])/sd(X[,i]))
+    } else {
+      theta[1] <- theta[1] - sapply(1:ncol(X), function(i) theta[i+1]*mean(X[,i]))
+    }
+  } 
+
+  rownames(theta) = c("interect", colnames(X))
+  colnames(theta) = "Estimate"
   list(theta = theta, cost=cost)
 }
 
@@ -748,11 +757,36 @@ fun <- function (formula, data) {
 }
 
 ```
+一元线性回归
+```{r}
+X<-mtcars %>% select(wt)
+y<-mtcars[,1]
+lmCost(X, y)
+```
+比较各种情况下梯度下降的速度
+看上去，好像中心化，能够加快梯度下降的速度。这是为什么
+```{r}
+lmGradientDescent(X=X, y=y, num_iters=50, alpha=0.2)
+lmGradientDescent(X=X, y=y, num_iters=50, alpha=0.2, scale=FALSE)
+lmGradientDescent(X=X, y=y, num_iters=50, alpha=0.2, center=FALSE)
+lmGradientDescent(X=X, y=y, num_iters=50, alpha=0.2, center=FALSE, scale=FALSE)
+fit <- lm(mpg ~ wt, data=mtcars); summary(fit)$coefficient[,1]
+lmCost(X, y, theta=summary(fit)$coefficient[,1])
+```
+
+和R的结果进行比较
+```{r
+
+fit <- lm(mpg ~ ., data=mtcars); summary(fit)
+```
+
+
 ```{r}
 X<-mtcars[,c("wt", "qsec", "am")]
 y<-mtcars[,1]
 lmCost(X, y)
-lmGradientDescent(X=X, y=y, num_iters=1000000, alpha=0.001)
+lmGradientDescent(X=X, y=y, num_iters=1000, alpha=0.001)
+lmGradientDescent(X=X, y=y, num_iters=1000, alpha=0.001, isScale=TRUE)
 ```
 
 和R的结果进行比较
