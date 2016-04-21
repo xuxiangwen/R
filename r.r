@@ -1,37 +1,6 @@
 #--------------------------------
 #基础设置
 #--------------------------------
-#设置当前的工作路径
-RR_path <- 'D:/xujian/project/RR/code'
-RR_path <- '/home/poc'
-RR_code_path <- 'D:/xujian/project/RR'
-setwd(RR_path)
-setwd(RR_code_path)
-
-#设置简体中文作为本地
-Sys.setlocale(,"CHS")
-Sys.setlocale(locale='Chinese');
-
-#设置代理
-Sys.setenv(http_proxy="http://web-proxy.rose.hp.com:8080")
-Sys.setenv(https_proxy="https://web-proxy.rose.hp.com:8080")
-
-#保存已安装的R包
-old_packages <- installed.packages()[,1]
-save(old_packages, file=paste(RR_path, "old_packages.Rdata", sep="/"))
-rm(old_packages)
-
-#更新已安装的R包(电脑重新安装时，特别有用，或者安装了R的新版本)
-load(paste(RR_path, "old_packages.Rdata", sep="/"))
-#remove.packages(c('vcd', 'pastecs'))
-new_pacakges <- installed.packages()[,1]
-for (package in setdiff(old_packages, new_pacakges)){
-  install.packages(package)
-  cat('\n--------------------------------------------------------------------')
-  cat('\nHave installed Package:',  package)
-  cat('\n--------------------------------------------------------------------')
-}
-
 #输入脚本
 #source("filename")可在当前会话中执行一个脚本
 
@@ -4092,3 +4061,62 @@ independence.test(500, fun=runif)
 independence.test(2000, fun=runif)
 independence.test(10000, fun=runif)
 independence.test(50000, fun=runif)
+
+
+#----------------------------------------------------------
+# mxnet：结合R与GPU加速深度学习
+# http://cos.name/2016/04/mxnet-r/
+#----------------------------------------------------------
+install.packages("drat", repos="https://cran.rstudio.com")
+drat:::addRepo("dmlc")
+install.packages("mxnet")
+
+require(mlbench)
+require(mxnet)
+data(Sonar, package="mlbench")
+Sonar[,61] = as.numeric(Sonar[,61])-1
+train.ind = c(1:50, 100:150)
+train.x = data.matrix(Sonar[train.ind, 1:60])
+train.y = Sonar[train.ind, 61]
+test.x = data.matrix(Sonar[-train.ind, 1:60])
+test.y = Sonar[-train.ind, 61]
+
+mx.set.seed(0)
+model <- mx.mlp(train.x, train.y, hidden_node=10, out_node=2, 
+                out_activation="softmax", num.round=100, array.batch.size=15, 
+                learning.rate=0.07, momentum=0.9, eval.metric=mx.metric.accuracy)
+
+preds = predict(model, test.x)
+pred.label = max.col(t(preds))-1
+table(pred.label, test.y)
+
+#回归模型与自定义神经网络
+data(BostonHousing, package="mlbench")
+train.ind = seq(1, 506, 3)
+train.x = data.matrix(BostonHousing[train.ind, -14])
+train.y = BostonHousing[train.ind, 14]
+test.x = data.matrix(BostonHousing[-train.ind, -14])
+test.y = BostonHousing[-train.ind, 14]
+
+# 定义输入数据
+data <- mx.symbol.Variable("data")
+# 完整连接的隐藏层
+# data: 输入源
+# num_hidden: 该层的节点数
+fc1 <- mx.symbol.FullyConnected(data, num_hidden=1)
+
+# 针对回归任务，定义损失函数
+lro <- mx.symbol.LinearRegressionOutput(fc1)
+
+mx.set.seed(0)
+model <- mx.model.FeedForward.create(lro, X=train.x, y=train.y, ctx=mx.cpu(), num.round=50, array.batch.size=20, learning.rate=2e-6, momentum=0.9, eval.metric=mx.metric.rmse)
+demo.metric.mae <- mx.metric.custom("mae", function(label, pred) {
+  res <- mean(abs(label-pred))
+  return(res)
+})
+
+mx.set.seed(0)
+model <- mx.model.FeedForward.create(lro, X=train.x, y=train.y, ctx=mx.cpu(), num.round=50, array.batch.size=20, learning.rate=2e-6, momentum=0.9, eval.metric=demo.metric.mae)
+
+
+
