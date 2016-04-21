@@ -1,0 +1,29 @@
+---
+title: "神经网络(Neural Network)"
+author: "徐坚"
+
+---
+
+目录：
+
+- 1 
+- 2 
+- 3 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+library(ggplot2)
+```
+
+```{r, echo=FALSE}
+hardlim <- function(x) { 0+ (x>=0)}
+hardlims <- function(x) {-(x<0)+(x>=0)}
+purelin <- function(x) {x}
+satlin <- function(x) {(x>=0 & x<=1)*x + (x>1)}
+satlins <- function(x) {-(x< -1) + (x>=-1 & x<=1)*x + (x>1)}
+logsig <- function(x) {1/(1+exp(-x))}
+tansig <- function(x) {exp(x)-exp(-x)/(exp(x)+exp(-x))}
+poslin <- function(x) {(x>=0)*x }
+compet <- function(x, fun) { }
+
+```

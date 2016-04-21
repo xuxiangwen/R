@@ -1,8 +1,13 @@
 ---
-title: "eipi10 arsenal"
-output: html_document
----
+title: "军火库"
+author: "徐坚"
 
+---
+```
+由于左边输出的内容，换行的太频繁，效果不佳，所以这个输出暂时不用。
+output: 
+  tufte::tufte_html: default
+```
 本文件用于整理学习工作中得到一些能够方便实用的统计，机器学习方法。希望这个文档能够做到以下几点。
 
 - 把对算法关键妙处，也就是精华之处展示出来。用markdown可以把这些东西展示出来，如果单纯R代码则没有这个表现力。另外，通过本文，也能够熟练掌握markdown的实用技巧，比如如何画图，如何编写数学公式。这些技巧对于一个数据科学家来说也是至关重要。
@@ -13,14 +18,23 @@ output: html_document
 
 - 1 R语言
     - 1.1 基本设置
+        - 1.1.1 设置简体中文作为本地
+        - 1.1.2 设置代理
+        - 1.1.3 R版本升级
     - 1.2 markdown
         - 1.2.1 printr
-
+        - 1.2.2 servr
+        - 1.2.3 tufte
+    - 1.3 其它
+        - 1.3.1 manipulate
 - 2 统计学
-    - 2.1 方差分析
-    - 2.2 一元线性回归
-    - 2.3 二元线性回归
-
+    - 2.1 基础
+        2.1.1 统计量
+    - 2.2 方差分析
+    - 2.3 一元线性回归
+        2.3.1 回归的由来
+        2.3.2 深入分析
+    - 2.4 多元线性回归
 - 3 机器学习
     - 3.1 逻辑回归
     - 3.2 决策树
@@ -33,7 +47,44 @@ output: html_document
 
 # 1 R语言
 ## 1.1 基本设置
+
+
+### 1.1.1 设置简体中文作为本地
+```r
+Sys.setlocale(,"CHS")
+Sys.setlocale(locale='Chinese');
+```
+
+### 1.1.2 设置代理
+```r
+Sys.setenv(http_proxy="http://web-proxy.rose.hp.com:8080")
+Sys.setenv(https_proxy="https://web-proxy.rose.hp.com:8080")
+```
+
+### 1.1.3 R版本升级
+```r
+#保存已安装的R包
+old_packages <- installed.packages()[,1]
+packageFileName <- paste0("packages.", R.version$major, ".", R.version$minor, ".Rdata")
+save(old_packages, file=packageFileName)
+
+#更新已安装的R包(电脑重新安装时，特别有用，或者安装了R的新版本)
+load(packageFileName)
+new_pacakges <- installed.packages()[,1]
+for (package in setdiff(old_packages, new_pacakges)){
+  install.packages(package)
+  cat('\n-------------------------------------------------')
+  cat('\nHave installed Package:',  package)
+  cat('\n-------------------------------------------------')
+}
+```
+
+
+
 ## 1.2 markdown
+
+这三个包都是学自<http://www.xueqing.tv/course/lesson/view/id/192#lesson-video>, 都是大牛xie, yi-hui开发的。
+
 ### 1.2.1 printr
 
 用于在rmakrdown里面，对matrices, data frames, and contingency tables等生成表格。源代码和详细介绍见<https://github.com/yihui/printr>。
@@ -68,14 +119,174 @@ head(iris,5)
 
 ```
 
+### 1.2.2 servr
+在指定目创建一个简单的HTTP服务器。源代码和详细介绍见 <https://github.com/yihui/servr>
+
+安装方法：
+```r
+install.packages('servr')  
+```
+
+启动http server
+```r
+library(servr)
+httd()
+```
+
+启动http server，当有R Markdown文件修改后自动产生HTML文件
+```r
+library(servr)
+rmdv2(daemon = TRUE)
+```
+如果当前目录的Rmarkdown文件保存后，会被自动编译输出到html。我们就不用手工点击"Knit HTML"button了。在编写Rmarkdown，往往需要频繁的按这个button，这样一个小的同步，带来的生产力提升却不小。其原理是，在当前目录启动http server后，会监控当前的目录的rmarkdown文件，如果更新日期有变化，就会自动编译生成新的html文件。然后通过WebSockets执行java script代码。这样html就会自动运行。
+
+似乎这个包当前还不是很稳定，用了半个小时，多次闪退。
+
+有了http server，还可以嵌入摄像头。可以把类似下面的代码放到R Markdown的开头
+```r
+title: "Arsenal"
+output: 
+  html_document:
+    includes:
+      before_body: webcam.html
+```      
+
+### 1.2.3 tufte
+tufte边栏输出。详见<https://github.com/rstudio/tufte>
+
+安装方法：
+```r
+install.packages('tufte')  
+```
+
+把类似下面的代码放到R Markdown的开头
+```r
+title: "An Example Using the Tufte Style"
+author: "John Smith"
+output:
+  tufte::tufte_handout: default
+  tufte::tufte_html: default
+```
+下面是一些例子：
+
+Margin Figures
+```{r fig.margin = TRUE}
+library(ggplot2)
+mtcars2 <- mtcars
+mtcars2$am <- factor(
+  mtcars$am, labels = c('automatic', 'manual')
+)
+ggplot(mtcars2, aes(hp, mpg, color = am)) +
+  geom_point() + geom_smooth() +
+  theme(legend.position = 'bottom')
+```
+
+
+Full Width Figures
+```{r  fig.fullwidth = TRUE, fig.cap="A full width figure"}
+ggplot(diamonds, aes(carat, price)) + geom_smooth() + facet_grid(~ cut)
+```
+
+## 1.2 其它
+### 1.3.1 manipulate
+可以调节参数来生成图形，提供一定的交互性。
+```
+library(manipulate)
+library(UsingR)
+myHist <- function(mu){
+    mse <- mean((galton$child - mu)^2)
+    g <- ggplot(galton, aes(x = child)) + geom_histogram(fill = "salmon", colour = "black", binwidth=1)
+    g <- g + geom_vline(xintercept = mu, size = 3)
+    g <- g + ggtitle(paste("mu = ", mu, ", MSE = ", round(mse, 2), sep = ""))
+    g
+}
+manipulate(myHist(mu), mu = slider(62, 74, step = 0.5))
+```
+
+# 2 统计学
+## 2.1 基础
+### 2.1.1 统计量
+#### 平均值（The empirical mean）
+
+* Define the empirical mean as
+$$
+\bar X = \frac{1}{n}\sum_{i=1}^n X_i. 
+$$
+
+#### 方差和标准方差（The emprical standard deviation and variance）
+
+* Define the empirical variance as 
+$$
+S^2 = \frac{1}{n-1} \sum_{i=1}^n (X_i - \bar X)^2 
+= \frac{1}{n-1} \left( \sum_{i=1}^n X_i^2 - n \bar X ^ 2 \right)
+$$
+* The empirical standard deviation is defined as
+$S = \sqrt{S^2}$. Notice that the standard deviation has the same units as the data.
+
+标准化（Normalization）
+$$
+Z_i = \frac{X_i - \bar X}{s}
+$$
+
+
+#### 协方差
+
+协方差的几何意义是X和Y在中心化后的两个向量之间的内积的平均。物理上认为内积是两个向量的功。
+$$
+Cov(X, Y) = 
+\frac{1}{n-1}\sum_{i=1}^n (X_i - \bar X) (Y_i - \bar Y)
+= \frac{1}{n-1}\left( \sum_{i=1}^n X_i Y_i - n \bar X \bar Y\right)
+$$
+$$
+Cor(X, Y) = \frac{Cov(X, Y)}{S_x S_y}
+$$
+where $S_x$ and $S_y$ are the estimates of standard deviations 
+for the $X$ observations and $Y$ observations, respectively.
+
+
+#### 相关系数
+
+* $Cor(X, Y) = Cor(Y, X)$
+* $-1 \leq Cor(X, Y) \leq 1$
+* $Cor(X, Y)$ 表示X和Y之间线性相关的程度
+* $Cor(X, Y) = 0$ 表示X和Y之间没有线性关系. 
+
+## 2.2 方差分析
+## 2.3 一元线性回归
+### 2.3.1 回归的由来
+Francis Galton, the 19th century polymath, can be credited with discovering regression. In his landmark paper Regression Toward Mediocrity in Hereditary Stature he compared the heights of parents and their children. He was particularly interested in the idea that the children of tall parents tended to be tall also, but a little shorter than their parents. Children of short parents tended to be short, but not quite as short as their parents. He referred to this as “regression to mediocrity” (or regression to the mean). In quantifying regression to the mean, he invented what we would call regression.
+
+为什么Galton有如上论断，其原因在于孩子身高和父母身高的回归系数小于1（0.646），当父母身高增加1，孩子身高只增加0.646，也就是说这个影响是正向的，但并不是100%，其他的随机因素（究竟是什么原因，基因，环境...）还发挥了较大作用。当父母高的时候，由于正向的回归系数，孩子也会相对较高，但其他随机因素使得孩子的身高看上去回归到平均，而当父母较矮时，由于正向的回归系数，孩子也会相对矮一些，这个时候，其他的随机因素也使得孩子的身高显得高一些，看上去回归到平均。
+
 ```{r}
-summary(cars)
+library(UsingR)
+lm(I(child - mean(child))~ I(parent - mean(parent)) - 1, data = galton)
 ```
 
-You can also embed plots, for example:
+### 2.3.2 深入分析
+#### 为何样本均值是\mu的最小二乘估计?
+从下面的推导可以看出，当$\mu = \bar Y$:
+$$ 
+\begin{align} 
+\sum_{i=1}^n \left(Y_i - \mu\right)^2 & = \
+\sum_{i=1}^n \left(Y_i - \bar Y + \bar Y - \mu\right)^2 \\ 
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+2 \sum_{i=1}^n \left(Y_i - \bar Y\right)  \left(\bar Y - \mu\right) +\
+\sum_{i=1}^n \left(\bar Y - \mu\right)^2 \\
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+2 \left(\bar Y - \mu\right) \sum_{i=1}^n \left(Y_i - \bar Y\right) +\
+\sum_{i=1}^n \left(\bar Y - \mu\right)^2 \\
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+2 \left(\bar Y - \mu\right)  \left(\left(\sum_{i=1}^n Y_i\right) -\
+ n \bar Y\right) +\
+\sum_{i=1}^n \left(\bar Y - \mu\right)^2 \\
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+ \sum_{i=1}^n \left(\bar Y - \mu\right)^2\\ 
+& \geq \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 \
+\end{align} 
+$$
 
-```{r, echo=FALSE}
-plot(cars)
-```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+## 2.4 多元线性回归
+
+

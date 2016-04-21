@@ -1,0 +1,763 @@
+---
+title: "回归(Regression)"
+author: "徐坚"
+
+---
+
+目录：
+
+- 1 回归的由来
+- 2 一元线性回归
+    - 2.1 一元线性回归模型
+    - 2.2 残差（residuals）分析
+    - 2.3 回归直线的拟合优度（goodness of fit）
+    - 2.4 显著性检查
+    - 2.5 区间估计
+- 3 多元线性回归
+- 4 自编线性回归
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=TRUE)
+library(UsingR)
+```
+
+### 1 回归的由来
+Francis Galton, the 19th century polymath, can be credited with discovering regression. In his landmark paper Regression Toward Mediocrity in Hereditary Stature he compared the heights of parents and their children. He was particularly interested in the idea that the children of tall parents tended to be tall also, but a little shorter than their parents. Children of short parents tended to be short, but not quite as short as their parents. He referred to this as “regression to mediocrity” (or regression to the mean). In quantifying regression to the mean, he invented what we would call regression.
+
+为什么Galton有如上论断，其原因在于孩子身高和父母身高的回归系数小于1（0.646），当父母身高增加1，孩子身高只增加0.646，也就是说这个影响是正向的，但并不是100%，其他的随机因素（究竟是什么原因，基因，环境...）还发挥了较大作用。当父母高的时候，由于正向的回归系数，孩子也会相对较高，但其他随机因素使得孩子的身高看上去回归到平均，而当父母较矮时，由于正向的回归系数，孩子也会相对矮一些，这个时候，其他的随机因素也使得孩子的身高显得高一些，看上去回归到平均。
+
+```{r}
+lm(I(child - mean(child))~ I(parent - mean(parent)) - 1, data = galton)
+```
+
+# 2 一元线性回归
+## 2.1 一元线性回归模型
+#### 为何样本均值是\mu的最小二乘估计?
+从下面的推导可以看出，当$\mu = \bar Y$时，下面公式取最小值。 
+$$ 
+\begin{align} 
+\sum_{i=1}^n \left(Y_i - \mu\right)^2 & = \
+\sum_{i=1}^n \left(Y_i - \bar Y + \bar Y - \mu\right)^2 \\ 
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+2 \sum_{i=1}^n \left(Y_i - \bar Y\right)  \left(\bar Y - \mu\right) +\
+\sum_{i=1}^n \left(\bar Y - \mu\right)^2 \\
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+2 \left(\bar Y - \mu\right) \sum_{i=1}^n \left(Y_i - \bar Y\right) +\
+\sum_{i=1}^n \left(\bar Y - \mu\right)^2 \\
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+2 \left(\bar Y - \mu\right)  \left(\left(\sum_{i=1}^n Y_i\right) -\
+ n \bar Y\right) +\
+\sum_{i=1}^n \left(\bar Y - \mu\right)^2 \\
+& = \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 + \
+ \sum_{i=1}^n \left(\bar Y - \mu\right)^2\\ 
+& \geq \sum_{i=1}^n \left(Y_i - \bar Y\right)^2 \
+\end{align} 
+$$
+
+其他的思路：
+
+1. 假设$$Y = \beta_0 + \beta_1 * X + e$$, 用最大似然法可以得出。
+2. 用机器学习的思路，求解最小化平均标准误差，求导数 ，也可以得到。
+
+#### 求解最佳拟合的直线
+* Use least squares
+  $$
+  \sum_{i=1}^n \{Y_i - (\beta_0 + \beta_1 X_i)\}^2
+  $$
+
+
+#### Results
+  $$\hat \beta_1 = Cor(Y, X) \frac{Sd(Y)}{Sd(X)} ~~~ \hat \beta_0 = \bar Y - \hat \beta_1 \bar X$$
+  $$\hat \beta_1 = \frac{Cov(Y, X)}{Var(X)} $$
+* If you normalized the data, $\{ \frac{X_i - \bar X}{Sd(X)}, \frac{Y_i - \bar Y}{Sd(Y)}\}$, the slope is $Cor(Y, X)$.
+
+####几个等价的求解方法
+```{r, fig.height=4,fig.width=4,echo=TRUE}
+y <- galton$child
+x <- galton$parent
+beta1 <- cor(y, x) *  sd(y) / sd(x)
+beta0 <- mean(y) - beta1 * mean(x)
+beta11 <- cov(y, x) / var(x)
+beta00 <- mean(y) - beta11 * mean(x)
+rbind(
+  c(beta0, beta1), 
+  c(beta00, beta11), 
+  coef(lm(y ~ x))
+)
+```
+
+最后看一看拟合的直线
+```{r, fig.height=5, fig.width=8, echo=FALSE}
+library(UsingR)
+data(galton)
+library(dplyr); library(ggplot2)
+freqData <- as.data.frame(table(galton$child, galton$parent))
+names(freqData) <- c("child", "parent", "freq")
+freqData$child <- as.numeric(as.character(freqData$child))
+freqData$parent <- as.numeric(as.character(freqData$parent))
+g <- ggplot(filter(freqData, freq > 0), aes(x = parent, y = child))
+g <- g  + scale_size(range = c(2, 20), guide = "none" )
+g <- g + geom_point(colour="grey50", aes(size = freq+20, show_guide = FALSE))
+g <- g + geom_point(aes(colour=freq, size = freq))
+g <- g + scale_colour_gradient(low = "lightblue", high="white")  
+g <- g + geom_smooth(method="lm", formula=y~x)
+g
+```
+
+## 2.2 残差（residuals）分析
+对于线性回归的假设
+
+<img class=center src=image/linear-regression-suppose.png height=150>
+
+#### Residuals
+* Model $Y_i = \beta_0 + \beta_1 X_i + \epsilon_i$ where $\epsilon_i \sim N(0, \sigma^2)$.
+* Observed outcome $i$ is $Y_i$ at predictor value $X_i$
+* Predicted outcome $i$ is $\hat Y_i$ at predictor valuve $X_i$ is
+  $$
+  \hat Y_i = \hat \beta_0 + \hat \beta_1 X_i
+  $$
+* Residual, the between the observed and predicted outcome
+  $$
+  e_i = Y_i - \hat Y_i
+  $$
+  * The vertical distance between the observed data point and the regression line
+* Least squares minimizes $\sum_{i=1}^n e_i^2$
+* The $e_i$ can be thought of as estimates of the $\epsilon_i$.
+
+假设对于每个具体的X，$Y \sim N(\beta_0 + \beta_1 X, \sigma^2)$
+
+#### Properties of the residuals
+* $E[e_i] = 0$.
+* If an intercept is included, $\sum_{i=1}^n e_i = 0$
+* If a regressor variable, $X_i$, is included in the model $\sum_{i=1}^n e_i X_i = 0$. 
+* One differentiates residual variation (variation after removing
+the predictor) from systematic variation (variation explained by the regression model).
+* Residual plots highlight poor model fit.
+
+```{r}
+data(diamond)
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+fit <- lm(y ~ x)
+e <- resid(fit)
+yhat <- predict(fit)
+#残差等价的计算方式
+max(abs(e -(y - yhat)))
+max(abs(e - (y - coef(fit)[1] - coef(fit)[2] * x)))
+```
+
+#### 图形上显示残差
+Residuals are the signed length of the red lines
+
+```{r, echo = FALSE, fig.height=5, fig.width=5}
+plot(diamond$carat, diamond$price,  
+     xlab = "Mass (carats)", 
+     ylab = "Price (SIN $)", 
+     bg = "lightblue", 
+     col = "black", cex = 2, pch = 21,frame = FALSE)
+abline(fit, lwd = 2)
+for (i in 1 : n) 
+  lines(c(x[i], x[i]), c(y[i], yhat[i]), col = "red" , lwd = 2)
+```
+
+#### Residuals versus X
+
+```{r, echo = FALSE, fig.height=5, fig.width=5}
+plot(x, e,  
+     xlab = "Mass (carats)", 
+     ylab = "Residuals (SIN $)", 
+     bg = "lightblue", 
+     col = "black", cex = 2, pch = 21,frame = FALSE)
+abline(h = 0, lwd = 2)
+for (i in 1 : n) 
+  lines(c(x[i], x[i]), c(e[i], 0), col = "red" , lwd = 2)
+```
+如果残差是正态的，残差在Y轴上下呈均匀分布，同时离Y轴越近，越密集。
+
+#### Non-linear data
+对于下面这个线性+周期的函数，残差可以明显看出残差的分布并不随机，而是前后有明显的相关性。我们使用线性回归模型的目的不是在于把线性回归作为最终的模型，发现通过国回归的各项指标发现数据的特点，比如：线性，周期，趋势，异方差等等。
+
+```{r, echo = FALSE, fig.height=5, fig.width=5}
+x = runif(100, -3, 3); y = x + sin(x) + rnorm(100, sd = .2); 
+library(ggplot2)
+g = ggplot(data.frame(x = x, y = y), aes(x = x, y = y))
+g = g + geom_smooth(method = "lm", colour = "black")
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g
+```
+
+#### Residual plot
+应该R里面也有自带的残差图，不过这个看起来不错
+
+```{r, echo = FALSE, fig.height=5, fig.width=5}
+g = ggplot(data.frame(x = x, y = resid(lm(y ~ x))), 
+           aes(x = x, y = y))
+g = g + geom_hline(yintercept = 0, size = 2); 
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g = g + xlab("X") + ylab("Residual")
+g
+```
+
+#### 异方差（Heteroskedasticity）
+
+```{r, echo = FALSE, fig.height=4.5, fig.width=4.5}
+x <- runif(100, 0, 6); y <- x + rnorm(100,  mean = 0, sd = .001 * x); 
+g = ggplot(data.frame(x = x, y = y), aes(x = x, y = y))
+g = g + geom_smooth(method = "lm", colour = "black")
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g
+```
+
+残差图里面，可以看出残差呈现一个喇叭口的形状。
+
+```{r, echo = FALSE, fig.height=4.5, fig.width=4.5}
+g = ggplot(data.frame(x = x, y = resid(lm(y ~ x))), 
+           aes(x = x, y = y))
+g = g + geom_hline(yintercept = 0, size = 2); 
+g = g + geom_point(size = 7, colour = "black", alpha = 0.4)
+g = g + geom_point(size = 5, colour = "red", alpha = 0.4)
+g = g + xlab("X") + ylab("Residual")
+g
+```
+
+## Diamond data residual plot
+可以看出Diamond的残差分布也不是正态的
+
+```{r, echo = FALSE, fig.height=4.5, fig.width=4.5}
+diamond$e <- resid(lm(price ~ carat, data = diamond))
+g = ggplot(diamond, aes(x = carat, y = e))
+g = g + xlab("Mass (carats)")
+g = g + ylab("Residual price (SIN $)")
+g = g + geom_hline(yintercept = 0, size = 2)
+g = g + geom_point(size = 7, colour = "black", alpha=0.5)
+g = g + geom_point(size = 5, colour = "blue", alpha=0.2)
+g
+```
+
+## Diamond data residual plot
+现在做两个回归，比较其残差图（还是有些不能理解，这样做的用意）。
+```{r echo = FALSE, fig.height=4.5, fig.width=4.5}
+e = c(resid(lm(price ~ 1, data = diamond)),
+      resid(lm(price ~ carat, data = diamond)))
+fit = factor(c(rep("Itc", nrow(diamond)),
+               rep("Itc, slope", nrow(diamond))))
+g = ggplot(data.frame(e = e, fit = fit), aes(y = e, x = fit, fill = fit))
+g = g + geom_dotplot(binaxis = "y", stackdir = "center", binwidth = 20)
+g = g + xlab("Fitting approach")
+g = g + ylab("Residual price")
+g
+```
+
+## 2.3 回归直线的拟合优度（goodness of fit）
+#### 判定系数（$R^2$）
+总平方和（SST）=  残差平方和（SSE）+ 回归平方和（SSR）
+
+残差平方和反应的是除线性关系之外因素对Y的变差作用，是不能用回归直线来解释的部分。
+
+回归平方和里面$\hat Y_i - \bar Y$可以看成由于X的变化引起的Y的变化。回归平方和反映了由于X与Y之间线性关系引起的Y的变化部分，它是可以由回归直线来解释yi的变差部分。
+
+变差分解图
+
+<img class=center src=image/lr-sst.png height=150>
+
+从上图可以看出，回归直线拟合的好坏取决于SSR/SST，当这个值越大，拟合的越好。该比例称为判定系数(Coefficient of determincation), 记为$R^2$ 
+
+
+$$
+SST = SSE + SSR
+$$
+$$
+\sum_{i=1}^n (Y_i - \bar Y)^2 
+= \sum_{i=1}^n (Y_i - \hat Y_i)^2 + \sum_{i=1}^n  (\hat Y_i - \bar Y)^2 
+$$
+
+- R squared is the percentage of the total variability that is explained
+by the linear relationship with the predictor
+$$
+R^2 = \frac{SSR}{SST} = \frac{\sum_{i=1}^n  (\hat Y_i - \bar Y)^2}{\sum_{i=1}^n (Y_i - \bar Y)^2}
+$$
+
+$R^2$和相关系数的关系
+Recall that $(\hat Y_i - \bar Y) = \hat \beta_1  (X_i - \bar X)$
+so that
+$$
+R^2 = \frac{\sum_{i=1}^n  (\hat Y_i - \bar Y)^2}{\sum_{i=1}^n (Y_i - \bar Y)^2}
+= \hat \beta_1^2  \frac{\sum_{i=1}^n(X_i - \bar X)^2}{\sum_{i=1}^n (Y_i - \bar Y)^2}
+= Cor(Y, X)^2
+$$
+Since, recall, 
+$$
+\hat \beta_1 = Cor(Y, X)\frac{Sd(Y)}{Sd(X)}
+$$
+So, $R^2$ is literally $r$ squared.
+
+Some facts about $R^2$
+
+* $R^2$ is the percentage of variation explained by the regression model.
+* $0 \leq R^2 \leq 1$
+* $R^2$ 是相关系数的平方.
+* $R^2$ 可能会误导我们对模型的判断. 
+    * Deleting data can inflate $R^2$. （不太理解）
+    * (For later.) Adding terms to a regression model always increases $R^2$.（不太理解）
+  
+Do `example(anscombe)` to see the following data.
+
+  * Basically same mean and variance of X and Y.
+  * Identical correlations (hence same $R^2$ ).
+  * Same linear regression relationship.
+  
+`data(anscombe);example(anscombe)`
+```{r, echo = FALSE, fig.height=5, fig.width=5, results='hide'}
+require(stats); require(graphics); data(anscombe)
+ff <- y ~ x
+mods <- setNames(as.list(1:4), paste0("lm", 1:4))
+for(i in 1:4) {
+  ff[2:3] <- lapply(paste0(c("y","x"), i), as.name)
+  ## or   ff[[2]] <- as.name(paste0("y", i))
+  ##      ff[[3]] <- as.name(paste0("x", i))
+  mods[[i]] <- lmi <- lm(ff, data = anscombe)
+  #print(anova(lmi))
+}
+
+
+## Now, do what you should have done in the first place: PLOTS
+op <- par(mfrow = c(2, 2), mar = 0.1+c(4,4,1,1), oma =  c(0, 0, 2, 0))
+for(i in 1:4) {
+  ff[2:3] <- lapply(paste0(c("y","x"), i), as.name)
+  plot(ff, data = anscombe, col = "red", pch = 21, bg = "orange", cex = 1.2,
+       xlim = c(3, 19), ylim = c(3, 13))
+  abline(mods[[i]], col = "blue")
+}
+mtext("Anscombe's 4 Regression data sets", outer = TRUE, cex = 1.5)
+par(op)
+```  
+
+#### 估计残差的方差（Estimating residual variation）
+
+* Model $Y_i = \beta_0 + \beta_1 X_i + \epsilon_i$ where $\epsilon_i \sim N(0, \sigma^2)$.
+* The ML estimate of $\sigma^2$ is $\frac{1}{n}\sum_{i=1}^n e_i^2$,
+the average squared residual. 
+* Most people use
+  $$
+  \hat \sigma^2 = \frac{1}{n-2}\sum_{i=1}^n e_i^2 = \frac{\sum_{i=1}^n (Y_i - \hat Y_i)^2}{n-2} = \frac{SSE}{n-2}
+  $$
+* The $n-2$ instead of $n$ is so that $E[\hat \sigma^2] = \sigma^2$
+
+残差的方差越小表示模型的拟合程度越好。
+
+等价的计算方式
+```{r, echo = TRUE}
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+fit <- lm(y ~ x)
+summary(fit)$sigma
+sqrt(sum(resid(fit)^2) / (n - 2))
+```
+
+## 2.4 显著性检查
+#### 线性关系的检验
+线性关系检验时检验自变量x和因变量y之间的线性关系是否显著，或者说，它们之间能否用一个线性模型$y = \beta_0 + \beta_1 x + \epsilon$来表示
+
+如果原假设（$H_0 : \beta_1 = 0$, 两个变量之间的线性关系不显著），则比值MSR/MSE的抽样分布服从分子自由度为k（k是自变量的个数,对于一元线性回归，只有一个自变量，即k=1），分母自由度为n-1-k的F分布。
+
+$$ F = \frac{SSR/k}{SSE/(n-1-k)} = \frac{MSR}{MSE} \sim F(k, n-1-k) $$
+
+
+#### 回归系数的检验
+回归系数的显著性检验要检验自变量对因变量的影响是否显著。在一元线性回归模型中$y = \beta_0 + \beta_1 x + \epsilon$中，如果$\beta_1 = 0$，回归线是一条水平线，表明因变量y的取值不依赖于自变量x, 即两个变量之间没有线性关系。如果回归系数$\beta_1 \neq 0$, 也不能得出两个变量之间存在线性关系的结论，这要看这种关系是否具有统计意义上的显著性。
+
+如果原假设（$H_0 : \beta_j = 0$），统计量
+$$
+t = \frac{\hat \beta_j - \beta_j}{\hat \sigma_{\hat \beta_j}}
+$$
+服从自由度为n-1-k自由度的t分布（或者当n很大时，服从正态分布）
+
+* $\sigma_{\hat \beta_1}^2 = Var(\hat \beta_1) = \sigma^2 / \sum_{i=1}^n (X_i - \bar X)^2$
+* $\sigma_{\hat \beta_0}^2 = Var(\hat \beta_0)  = \left(\frac{1}{n} + \frac{\bar X^2}{\sum_{i=1}^n (X_i - \bar X)^2 }\right)\sigma^2$
+* In practice, $\sigma$ is replaced by its estimate.
+* This can be used to create confidence intervals and perform
+hypothesis tests.
+
+在一元回归中，自变量只有一个，线性关系的检验中（F检验）和回归系数的检验（t检验 $\beta_1 = 0$）是等价的。但对于多元回归分析中，F检验用于检验总体回归关系的显著性，而t检验则是检验各个回归系数的显著性。
+
+计算公式汇总
+<img class=center src=image/lr-test.png height=150>
+
+#### 回归分析结果的评价
+- 所估计的回归系数$\hat \beta_1$的符号是否和理论或事先预期相一致。如果不一致，有可能是变量之间有高度相关性。
+- 各种显著性检验应该通过。
+- 用判定系数$R^2$来判断回归模型在多大程度上解释了因变量y取值的差异。
+- 考察关于误差项$\epsilon$正态性假定是否成立。 主要通过残差分析。
+
+#### 例子
+```{r}
+library(UsingR); data(diamond)
+y <- diamond$price; x <- diamond$carat; n <- length(y)
+beta1 <- cor(y, x) * sd(y) / sd(x)
+beta0 <- mean(y) - beta1 * mean(x)
+e <- y - beta0 - beta1 * x
+sigma <- sqrt(sum(e^2) / (n-2)) 
+ssx <- sum((x - mean(x))^2)
+seBeta0 <- (1 / n + mean(x) ^ 2 / ssx) ^ .5 * sigma 
+seBeta1 <- sigma / sqrt(ssx)
+tBeta0 <- beta0 / seBeta0; tBeta1 <- beta1 / seBeta1
+pBeta0 <- 2 * pt(abs(tBeta0), df = n - 2, lower.tail = FALSE)
+pBeta1 <- 2 * pt(abs(tBeta1), df = n - 2, lower.tail = FALSE)
+coefTable <- rbind(c(beta0, seBeta0, tBeta0, pBeta0), c(beta1, seBeta1, tBeta1, pBeta1))
+colnames(coefTable) <- c("Estimate", "Std. Error", "t value", "P(>|t|)")
+rownames(coefTable) <- c("(Intercept)", "x")
+```
+
+
+Example continued
+
+```{r}
+coefTable
+fit <- lm(y ~ x); 
+summary(fit)$coefficients
+```
+
+Getting a confidence interval
+```{r}
+sumCoef <- summary(fit)$coefficients
+sumCoef[1,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[1, 2]
+sumCoef[2,1] + c(-1, 1) * qt(.975, df = fit$df) * sumCoef[2, 2]
+```
+
+## 2.5 区间估计
+<img class=center src=image/lr-intervals.png height=150>
+
+There’s a distinction between intervals for the regression line at point x0x0 and the prediction of what a yy would be at point x0x0.
+
+##### y的平均值的置信区间的估计（confidence interval estimate）
+
+对于x的一个给定值$x_0$, 求出y的平均值的区间估计。
+
+$$
+\hat \sigma\sqrt{\frac{1}{n} +  \frac{(x_0 - \bar X)^2}{\sum_{i=1}^n (X_i - \bar X)^2}}
+$$
+
+##### y的个别值得预测区间的估计（prediction interval estimate）
+
+对于x的一个给定值$x_0$, 求出y的一个个别值的区间估计。可以看出预测区间公式里面多了一个1，所以预测区间比置信区间要宽。
+
+$$
+\hat \sigma\sqrt{1 + \frac{1}{n} + \frac{(x_0 - \bar X)^2}{\sum_{i=1}^n (X_i - \bar X)^2}}
+$$
+
+
+#### 例子
+```{r, fig.height=5, fig.width==5, echo = FALSE, results='hide'}
+library(ggplot2)
+newx = data.frame(x = seq(min(x), max(x), length = 100))
+p1 = data.frame(predict(fit, newdata= newx,interval = ("confidence")))
+p2 = data.frame(predict(fit, newdata = newx,interval = ("prediction")))
+p1$interval = "confidence"
+p2$interval = "prediction"
+p1$x = newx$x
+p2$x = newx$x
+dat = rbind(p1, p2)
+names(dat)[1] = "y"
+
+g = ggplot(dat, aes(x = x, y = y))
+g = g + geom_ribbon(aes(ymin = lwr, ymax = upr, fill = interval), alpha = 0.2) 
+g = g + geom_line()
+g = g + geom_point(data = data.frame(x = x, y=y), aes(x = x, y = y), size = 4)
+g
+```
+
+从上图可以看出区间的宽度是不同的，当$x_0 = \bar x$时，预测区间是最准的。
+
+值得注意的是：利用回归方程进行估计或预测是，不要用样本数据之外的x值去预测相对应的y值。因为在一元线性回归分析汇总，总是假定y和x之间的关系用线性模型表达是正确的。但实际应用中，它们之间的关系科恩能够是某种区间，如果x在区间之外，我们无法知道曲线的状态，这样得出的估计值和预测值就会很不理想。
+
+# 3 多元线性回归
+
+## Demonstration that it works using an example
+### Linear model with two variables
+
+```{r}
+#x都是独立的随机变量
+n = 100; x = rnorm(n); x2 = rnorm(n); x3 = rnorm(n)
+y = 1 + x + x2 + x3 + rnorm(n, sd = .1)
+ey = resid(lm(y ~ x2 + x3))
+ex = resid(lm(x ~ x2 + x3))
+sum(ey * ex) / sum(ex ^ 2)
+coef(lm(ey ~ ex - 1))
+coef(lm(y ~ x + x2 + x3)) 
+
+#下面的确可以看到符号发生变化，但当x2是正态的时候就不会出现这种情况，为什么
+x2 = 1:n; x3 =  rnorm(n)
+x = 0.1*x2  +  rnorm(n)
+y = 1 - x + x2 + x3 + rnorm(n, sd = .1)
+ey = resid(lm(y ~ x2 + x3))
+ex = resid(lm(x ~ x2 + x3))
+sum(ey * ex) / sum(ex ^ 2)
+coef(lm(ey ~ ex - 1))
+coef(lm(y ~   x + x2 + x3)) 
+coef(lm(y ~   x + x2)) 
+coef(lm(y~x))
+
+```
+```{r, fig.height=6, fig.width=10, echo = FALSE}
+require(datasets); data(swiss); require(GGally); require(ggplot2)
+# g = ggpairs(swiss, lower = list(continuous = "smooth"),params = c(method = "loess"))
+# g
+```
+## Calling `lm`
+`summary(lm(Fertility ~ . , data = swiss))`
+```{r, echo = FALSE}
+summary(lm(Fertility ~ . , data = swiss))$coefficients
+```
+How can adjustment reverse the sign of an effect? Let's try a simulation.
+```{r, echo = TRUE}
+n <- 100; x2 <- 1 : n; x1 <- .01 * x2 + runif(n, -.1, .1); y = -x1 + x2 + rnorm(n, sd = .01)
+summary(lm(y ~ x1))$coef
+summary(lm(y ~ x1 + x2))$coef
+```
+
+```{r}
+spray2 <- relevel(InsectSprays$spray, "C")
+library(datasets); data(swiss)
+head(swiss)
+
+library(dplyr)
+swiss = mutate(swiss, CatholicBin = 1 * (Catholic > 50))
+
+g = ggplot(swiss, aes(x = Agriculture, y = Fertility, colour = factor(CatholicBin)))
+g = g + geom_point(size = 6, colour = "black") + geom_point(size = 4)
+g = g + xlab("% in Agriculture") + ylab("Fertility")
+g
+
+summary(lm(Fertility ~ Agriculture, data = swiss))$coef
+summary(lm(Fertility ~ Agriculture + factor(CatholicBin), data = swiss))$coef
+summary(lm(Fertility ~ Agriculture * factor(CatholicBin), data = swiss))$coef
+
+
+
+```
+
+
+
+## adjust
+```{r, fig.height=5, fig.width=5, echo = FALSE, results='hide'}
+n <- 100; t <- rep(c(0, 1), c(n/2, n/2)); x <- c(runif(n/2), runif(n/2));
+beta0 <- 0; beta1 <- 2; tau <- 1; sigma <- .2
+y <- beta0 + x * beta1 + t * tau + rnorm(n, sd = sigma)
+plot(x, y, type = "n", frame = FALSE)
+abline(lm(y ~ x), lwd = 2)
+abline(h = mean(y[1 : (n/2)]), lwd = 3)
+abline(h = mean(y[(n/2 + 1) : n]), lwd = 3)
+fit <- lm(y ~ x + t)
+abline(coef(fit)[1], coef(fit)[2], lwd = 3)
+abline(coef(fit)[1] + coef(fit)[3], coef(fit)[2], lwd = 3)
+points(x[1 : (n/2)], y[1 : (n/2)], pch = 21, col = "black", bg = "lightblue", cex = 2)
+points(x[(n/2 + 1) : n], y[(n/2 + 1) : n], pch = 21, col = "black", bg = "salmon", cex = 2)
+```
+
+
+残差图
+```{r, fig.height=5, fig.width=5, echo = FALSE, results='hide'}
+data(swiss); par(mfrow = c(2, 2))
+fit <- lm(Fertility ~ . , data = swiss); plot(fit)
+
+```
+Leverage discusses how outside of the norm a points X values are from the cloud of other X values. A point with high leverage has the opportunity to dramatically impact the regression model. Whether or not it does so depends on how closely it conforms to the fit.
+
+Leverage is largely measured by one quantity, so called hat diagonals, which can be obtained in R by the function hatvalues. The hat values are necessarily between 0 and 1 with larger values indicating greater (potential for) leverage.
+
+After leverage, there are quite a few ways to probe for **influence. These are:
+
+dffits - change in the predicted response when the $i^{th}$ point is deleted in fitting the model.
+dfbetas - change in individual coefficients when the $i^{th}$ point is deleted in fitting the model.
+cooks.distance - overall change in the coefficients when the $i^{th}$ point is deleted.
+
+
+General rules
+
+- Omitting variables results in bias in the coefficients of interest - unless the regressors are uncorrelated with the omitted ones.
+如果被忽略的变量和回归变量相关的话，回归系数就有偏。
+- Including variables that we shouldn’t have increases standard errors of the regression variables.
+增加的变量必须不会使变残差变大。
+
+```{r, fig.height=5, fig.width=5, echo = FALSE, results='hide'}
+n <- 100
+plot(c(1, n), 0 : 1, type = "n", frame = FALSE, xlab = "p", ylab = "R^2")
+y <- rnorm(n); x <- NULL; r <- NULL
+for (i in 1 : n){
+   x <- cbind(x, rnorm(n))
+   r <- c(r, summary(lm(y ~ x))$r.squared)
+}
+lines(1 : n, r, lwd = 3)
+abline(h = 1)
+
+```
+
+
+Notice that the R^2 goes up, monotonically, as the number of regressors is increased.因为R^2是相关系数的平方，数据越多，在高维空间，向量之间的夹角会倾向于越小。这样R^2就会越大
+The adjusted R^2 is better for these purposes than R^2 since it accounts for the number of variables included in the model. In R, you can get the adjusted R^2 very easily with by grabbing summary(fitted_model)$adj.r.squared instead of summary(fitted_model)$r.squared.
+
+
+n <- 100; nosim <- 1000
+x1 <- rnorm(n); x2 <- rnorm(n); x3 <- rnorm(n);
+betas <- sapply(1 : nosim, function(i){
+  y <- x1 + rnorm(n, sd = .3)
+  c(coef(lm(y ~ x1))[2],
+    coef(lm(y ~ x1 + x2))[2],
+    coef(lm(y ~ x1 + x2 + x3))[2])
+  })
+round(apply(betas, 1, sd), 5)
+
+如果增加变量，但系数基本没变，说明新增变量和已有变量不相关
+
+n <- 100; nosim <- 1000
+x1 <- rnorm(n); x2 <- x1/sqrt(2) + rnorm(n) /sqrt(2)
+x3 <- x1 * 0.95 + rnorm(n) * sqrt(1 - 0.95^2);
+betas <- sapply(1 : nosim, function(i){
+  y <- x1 + rnorm(n, sd = .3)
+  c(coef(lm(y ~ x1))[2],
+    coef(lm(y ~ x1 + x2))[2],
+    coef(lm(y ~ x1 + x2 + x3))[2])
+})
+round(apply(betas, 1, sd), 5)
+
+
+Summary of variance inflation
+
+- Notice variance inflation was much worse when we included a variable that was highly related to x1.
+- We don’t know \sigma, the residual variance, so we can’t know the actual variance inflation amount.
+- However, \sigma drops out of the ratio of the standard errors. Thus, if one sequentially adds variables, one can check the variance (or sd) inflation for including each one.
+- When the other regressors are actually orthogonal (correlation 0) to the regressor of interest, then there is no variance inflation.
+- The variance inflation factor (VIF) is the increase in the variance for the ith regressor compared to the ideal setting where it is orthogonal to the other regressors.
+    - The square root of the VIF is the increase in the sd instead of variance.
+- Remember, variance inflation is only part of the picture. We want to include certain variables, even if they dramatically inflate our variance.
+
+
+get the relative increase in variance for including x2 and x3
+y <- x1 + rnorm(n, sd = .3)
+a <- summary(lm(y ~ x1))$cov.unscaled[2,2]
+c(summary(lm(y ~ x1 + x2))$cov.unscaled[2,2],
+  summary(lm(y~ x1 + x2 + x3))$cov.unscaled[2,2]) / a
+temp <- apply(betas, 1, var); temp[2 : 3] / temp[1]
+上面的方法可以让单一数据集合，模拟出多次数据集合，求解增加变量后，回归系数的方差变化比例。
+
+data(swiss);
+fit1 <- lm(Fertility ~ Agriculture, data = swiss)
+a <- summary(fit1)$cov.unscaled[2,2]
+fit2 <- lm(Fertility ~ Agriculture + Examination, data = swiss)
+fit3 <- lm(Fertility ~ Agriculture + Examination + Education, data = swiss)
+c(summary(fit2)$cov.unscaled[2,2],summary(fit3)$cov.unscaled[2,2]) / a
+    
+vif(lm(Fertility ~ Agriculture + Examination + Education, data = swiss)) 
+
+## variance inflation factors
+library(car)
+fit <- lm(Fertility ~ . , data = swiss)   
+vif(fit)
+ sqrt(vif(fit))
+
+##Impact of over- and under-fitting on residual variance estimation
+These two rules follow: 
+
+* If we underfit the model, that is omit necessary covariates, the variance estimate is biased. 
+* If we correctly or overfit the model, including all necessary covariates and possibly some unnecessary ones, the variance estimate is unbiased. However, the variance of the variance is larger if we include unnecessary variables.
+
+## How to do nested model testing in R
+fit1 <- lm(Fertility ~ Agriculture, data = swiss)
+fit3 <- update(fit, Fertility ~ Agriculture + Examination + Education)
+fit5 <- update(fit, Fertility ~ Agriculture + Examination + Education + Catholic + Infant.Mortality)
+anova(fit1, fit3, fit5)
+
+# Ravens logistic regression
+Now let’s run our binary regression model on the Ravens data.
+download.file("https://dl.dropboxusercontent.com/u/7710864/data/ravensData.rda"
+              , destfile="./data/ravensData.rda",method="curl")
+lmRavens <- lm(ravensData$ravenWinNum ~ ravensData$ravenScore)   
+summary(lmRavens)$coef
+logRegRavens = glm(ravensData$ravenWinNum ~ ravensData$ravenScore,family="binomial")
+summary(logRegRavens)
+
+exp(logRegRavens$coeff)
+exp(confint(logRegRavens))
+
+#  possion regression
+plot(gaData$julian,gaData$visits,pch=19,col="darkgrey",xlab="Julian",ylab="Visits")
+glm1 = glm(gaData$visits ~ gaData$julian,family="poisson")
+abline(lm1,col="red",lwd=3); lines(gaData$julian,glm1$fitted,col="blue",lwd=3)
+
+plot(glm1$fitted,glm1$residuals,pch=19,col="grey",ylab="Residuals",xlab="Fitted")
+
+
+#查找最佳模型
+fit <- lm(mpg ~ cyl+disp+hp+drat+wt+qsec+vs+am+gear+carb, data=mtcars , data=mtcars);summary(fit) 
+fit <- lm(mpg ~ disp+hp+drat+wt+qsec+vs+am+gear+carb, data=mtcars); summary(fit) 
+fit <- lm(mpg ~ disp+hp+drat+wt+qsec+vs+am+gear, data=mtcars); summary(fit) 
+fit <- lm(mpg ~ disp+hp+drat+wt+qsec+vs+am, data=mtcars); summary(fit) 
+fit <- lm(mpg ~ disp+hp+drat+wt+qsec+am, data=mtcars); summary(fit) 
+fit <- lm(mpg ~ disp+hp+wt+qsec+am, data=mtcars); summary(fit) 
+fit <- lm(mpg ~ wt+qsec+am, data=mtcars); summary(fit)
+fit <- lm(mpg ~ wt+qsec+am+I(wt*am), data=mtcars); summary(fit)
+
+
+
+fit <- lm(mpg ~ wt, data=mtcars); summary(fit)
+fit <- lm(mpg ~ qsec, data=mtcars); summary(fit)
+fit <- lm(mpg ~ am, data=mtcars); summary(fit)
+
+
+
+# 4 自编线性回归
+
+## Cost Function
+$$
+J = \frac{ (y - X\theta)^t(y - X\theta) }{2 m}
+$$
+
+```{r, fig.height=5, fig.width=5, echo = FALSE, results='hide'}
+lmCost <- function(X, y, theta=rep(1, ncol(X)+1)) {
+  newX <- cbind(1, as.matrix(X))
+  e <- newX %*% theta - y
+  (t(e) %*% e)/2/nrow(X)
+}
+
+#梯度下降的好处是，当梯度比较大的时候，下降的比较快，当接近最小值，梯度就变得比较小，下降的慢，这杨就能接近最小值了
+#这个版本，梯度下降的速度实在太慢了
+lmGradientDescent <- function(X, y, num_iters, alpha=0.01) {
+  m <- nrow(X)
+  newX <- cbind(1, as.matrix(X))  
+  cost <- numeric(0)
+  theta <- rep(1, ncol(X)+1)
+  
+  print(m)
+  
+  for (i in 1:num_iters) { #for loop for first dimension
+    theta <- theta -  t(newX) %*% (newX %*% theta - y)*alpha/m 
+    cost <- lmCost(X, y, theta)
+    print(cost)
+  }
+  
+  names(theta) = colnames(X)
+  list(theta = theta, cost=cost)
+}
+
+fun <- function (formula, data) {
+  cl <- match.call()
+  mf <- match.call(expand.dots = FALSE)
+  names(mf)
+  #m <- match(c("formula", "data"), names(mf), 0L)
+}
+
+```
+```{r}
+X<-mtcars[,c("wt", "qsec", "am")]
+y<-mtcars[,1]
+lmCost(X, y)
+lmGradientDescent(X=X, y=y, num_iters=1000000, alpha=0.001)
+```
+
+和R的结果进行比较
+```{r
+fit <- lm(mpg ~ wt+qsec+am, data=mtcars); summary(fit)$coefficient[,1]
+lmCost(X, y, theta=summary(fit)$coefficient[,1])
+fit <- lm(mpg ~ ., data=mtcars); summary(fit)
+```
