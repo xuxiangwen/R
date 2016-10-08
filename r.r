@@ -4118,5 +4118,123 @@ demo.metric.mae <- mx.metric.custom("mae", function(label, pred) {
 mx.set.seed(0)
 model <- mx.model.FeedForward.create(lro, X=train.x, y=train.y, ctx=mx.cpu(), num.round=50, array.batch.size=20, learning.rate=2e-6, momentum=0.9, eval.metric=demo.metric.mae)
 
+#Perceptron Learning Algorithm
+library(dplyr)
+update <- function(w, error) {
+  errorCount <- nrow(error)
+  errorIndex <- 0
+  if (errorCount==0) {
+    wNew = w
+  } else {
+    errorIndex <- sample(errorCount, 1)
+    #errorIndex <- 1
+    wNew <- w + error[errorIndex,-4]*error[errorIndex,4]
+    wNew <- as.matrix(wNew)[1,]
+  }
+  list(w=wNew, index=errorIndex)
+}
+
+getError <- function(data, w) {
+  if (sum(w==0)==length(w)) {
+    data
+  } else {
+    result <- as.matrix(data[,-4]) %*% w
+    labelPredict <- ifelse(result>=0, 1, -1)
+    data %>% filter(label != labelPredict)
+  }
+}
+
+getErrorRate <- function(data, w) {
+  error <- getError(data, w)
+  nrow(error)/nrow(data)
+}
+
+getAllData <- function(n) {
+  theta <- runif(1, min=0, max=2*pi)
+  w1 <-cos(theta)   
+  w2 <- sin(theta)
+  if (runif(1,-1,1)>0) {
+    w0 = runif(1, min=-abs(w1), max=abs(w1))
+  } else  {
+    w0 = runif(1, min=-abs(w1), max=abs(w1))
+  }
+  w <- c(x0=w0, x1=w1, x2=w2)
+  dataLength <- round(n*1.5)
+  rawdata <- data.frame(x0=1, x1=runif(dataLength,-1,1), x2=runif(dataLength,-1,1))
+  
+  result <- as.matrix(rawdata) %*% w
+  label <- ifelse(result>=0, 1, -1)
+  data <- cbind(rawdata, label)
+  list(w=w, train=data[1:n,], test=data[(n+1):dataLength,])
+}
+
+printPlot <- function(data, wTarget, wT, wT1, error, errorIndex, iteration) {
+  p <- ggplot(data, aes(x=x1, y=x2, colour = factor(label), shape = factor(label), size=1)) 
+  p <- p + ggtitle(paste0("Iteration=", iteration, " Error Count=", nrow(error))) +
+    theme(legend.position = "none") + 
+    xlim(-2, 2) + ylim(-2, 2)
+  print(wTarget)
+  p <- p + geom_point() + 
+    geom_abline(intercept=-wTarget[1]/wTarget[3], slope=-wTarget[2]/wTarget[3], color='black', linetype="dashed", size=0.8) + 
+    geom_segment(aes(x = 0, y = 0, xend=wTarget[2], yend=wTarget[3], size=0.5), 
+                 arrow = arrow(length = unit(0.3, "cm")), colour = "black") + 
+    geom_segment(aes(x = 0, y = 0, xend=wT[2], yend=wT[3], size=0.5), 
+                 arrow = arrow(length = unit(0.3, "cm")), colour = "blue") + 
+    geom_segment(aes(x = 0, y = 0, xend=wT1[2], yend=wT1[3], size=0.5), 
+                 arrow = arrow(length = unit(0.3, "cm")), colour = "green") 
+  if (errorIndex>0) {
+    p <- p + geom_segment(aes(x = 0, y = 0, xend=error[errorIndex,1], yend=error[errorIndex,2], size=0.5), arrow = arrow(length = unit(0.3, "cm")), colour = "red") 
+    p <- p + geom_text(data=error, mapping=aes(x=x1, y=x2, label="e"), size=4, color="black")
+  }
+  p
+}
+
+
+pla <- function(n, step=FALSE, showPlot=FALSE) {
+  alldata <- getAllData(n)
+  train <- alldata$train
+  test <- alldata$test
+  w <- alldata$w
+  wUpdate <- as.matrix(c(0, 0, 0))
+  i <- 0
+  errorCount <- n
+  
+  while (errorCount>0) {
+    i <- i+1
+    cat(paste0('---------iteration ', i, '---------\n'))   
+    error <- getError(train, wUpdate)
+    errorCount <- nrow(error)
+    status <- update(wUpdate, error)
+    if (showPlot) {
+      p <- printPlot(train, w, wUpdate, status$w, error, status$index, i)
+      print(p)
+    }
+    wUpdate <- status$w   
+    print(wUpdate)
+    cat(paste0("error count=", nrow(error), "\n"))    
+    if (step) {
+      cat ("Press [enter] to continue")
+      line <- readline()   
+      if (line=="q") break
+    } 
+  }  
+  cat(paste0('--------------------------\n')) 
+  errorRate <- getErrorRate(test, wUpdate)
+  cat(paste0('wUpdate: \n')) 
+  print(wUpdate)
+  cat(paste0('\nw: \n')) 
+  print(w)  
+  cat(paste0('\n')) 
+  c(iteration=i, errorRate=errorRate)
+}
+
+n<-100
+pla(n)
+pla(n, showPlot=TRUE, step=TRUE)
+
+iterations <- t(sapply(1:100, function(i) pla(n));summary(iterations)
+
+
+
 
 
