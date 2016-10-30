@@ -4118,7 +4118,7 @@ demo.metric.mae <- mx.metric.custom("mae", function(label, pred) {
 mx.set.seed(0)
 model <- mx.model.FeedForward.create(lro, X=train.x, y=train.y, ctx=mx.cpu(), num.round=50, array.batch.size=20, learning.rate=2e-6, momentum=0.9, eval.metric=demo.metric.mae)
 
-#Perceptron Learning Algorithm
+#PLA: Perceptron Learning Algorithm
 library(dplyr)
 update <- function(w, error) {
   errorCount <- nrow(error)
@@ -4138,7 +4138,8 @@ getError <- function(data, w) {
   if (sum(w==0)==length(w)) {
     data
   } else {
-    result <- as.matrix(data[,-4]) %*% w
+    n <- ncol(data)
+    result <- as.matrix(data[,-n]) %*% w
     labelPredict <- ifelse(result>=0, 1, -1)
     data %>% filter(label != labelPredict)
   }
@@ -4183,25 +4184,44 @@ printPlot <- function(data, wTarget, wT, wT1, error, errorIndex, iteration) {
     geom_segment(aes(x = 0, y = 0, xend=wT1[2], yend=wT1[3], size=0.5), 
                  arrow = arrow(length = unit(0.3, "cm")), colour = "green") 
   if (errorIndex>0) {
-    p <- p + geom_segment(aes(x = 0, y = 0, xend=error[errorIndex,1], yend=error[errorIndex,2], size=0.5), arrow = arrow(length = unit(0.3, "cm")), colour = "red") 
+    p <- p + geom_segment(aes(x = 0, y = 0, xend=error[errorIndex,2], yend=error[errorIndex,3], size=0.5), arrow = arrow(length = unit(0.3, "cm")), colour = "red") 
     p <- p + geom_text(data=error, mapping=aes(x=x1, y=x2, label="e"), size=4, color="black")
   }
   p
 }
 
+printOriginPlot <- function(data, wTarget) {
+  p <- ggplot(data, aes(x=x1, y=x2, colour = factor(label), shape = factor(label))) 
+  p <- p + theme(legend.position = "none") + 
+    xlim(-2, 2) + ylim(-2, 2)
+  print(wTarget)
+  p <- p + geom_point() + 
+    geom_abline(intercept=-wTarget[1]/wTarget[3], slope=-wTarget[2]/wTarget[3], color='black', linetype="dashed", size=0.8) + 
+    geom_segment(aes(x = 0, y = 0, xend=wTarget[2], yend=wTarget[3]), 
+                 arrow = arrow(length = unit(0.3, "cm")), colour = "black") 
+  p
+}
 
-pla <- function(n, step=FALSE, showPlot=FALSE) {
-  alldata <- getAllData(n)
+
+pla <- function(n, step=FALSE, showPlot=FALSE, alldata=getAllData(n), wInitial=as.matrix(c(0, 0, 0))) {
   train <- alldata$train
   test <- alldata$test
   w <- alldata$w
-  wUpdate <- as.matrix(c(0, 0, 0))
+  wUpdate <- wInitial
   i <- 0
   errorCount <- n
-  
+  if (showPlot) {
+    p <- printOriginPlot(train, w)
+    print(p)
+  }
+  if (step) {
+    cat ("Press [enter] to continue")
+    line <- readline()   
+    if (line=="q") return c(iteration=0, errorRate=0)
+  }    
   while (errorCount>0) {
+   
     i <- i+1
-    cat(paste0('---------iteration ', i, '---------\n'))   
     error <- getError(train, wUpdate)
     errorCount <- nrow(error)
     status <- update(wUpdate, error)
@@ -4210,21 +4230,24 @@ pla <- function(n, step=FALSE, showPlot=FALSE) {
       print(p)
     }
     wUpdate <- status$w   
-    print(wUpdate)
-    cat(paste0("error count=", nrow(error), "\n"))    
     if (step) {
+      cat(paste0('---------iteration ', i, '---------\n'))        
+      print(wUpdate)
+      cat(paste0("error count=", nrow(error), "\n"))  
+      cat(paste0('--------------------------\n'))       
       cat ("Press [enter] to continue")
       line <- readline()   
       if (line=="q") break
-    } 
+    }      
   }  
-  cat(paste0('--------------------------\n')) 
+
   errorRate <- getErrorRate(test, wUpdate)
   cat(paste0('wUpdate: \n')) 
   print(wUpdate)
   cat(paste0('\nw: \n')) 
   print(w)  
-  cat(paste0('\n')) 
+  cat(paste0('\niteration: ', i, "\n")) 
+  cat(paste0('\nerrorRate: ', errorRate, "\n")) 
   c(iteration=i, errorRate=errorRate)
 }
 
@@ -4232,7 +4255,260 @@ n<-100
 pla(n)
 pla(n, showPlot=TRUE, step=TRUE)
 
-iterations <- t(sapply(1:100, function(i) pla(n));summary(iterations)
+results <- t(sapply(1:100, function(i) {
+  cat(paste0('===================', i, '===================\n'))
+  pla(n)
+}));summary(results)
+
+#linear regression
+library(dplyr)
+library(ggplot2)
+getErrorLR <- function(data, w) {
+  n <- ncol(data)
+  result <- as.matrix(data[,-n]) %*% w
+  labelPredict <- ifelse(result>=0, 1, -1)
+  data %>% filter(label != labelPredict)
+}
+
+getErrorRateLR <- function(data, w) {
+  error <- getError(data, w)
+  nrow(error)/nrow(data)
+}
+
+getW <- function(data) {
+  n <- ncol(data)
+  x <- as.matrix(data[,-n])
+  y <- data[,n]
+  w <- solve((t(x) %*% x)) %*% t(x) %*% y
+  w
+}
+
+printPlotLR <- function(data, w, wPredict) {
+  if (ncol(data)==4) {
+    p <- ggplot(data, aes(x=x1, y=x2, colour = factor(label), shape = factor(label), size=1)) 
+    p <- p + 
+      theme(legend.position = "none") + 
+      xlim(-2, 2) + ylim(-2, 2)
+    print(w)
+    p <- p + geom_point() + 
+      geom_abline(intercept=-w[1]/w[3], slope=-w[2]/w[3], color='black', linetype="dashed", size=0.8) + 
+      geom_segment(aes(x = 0, y = 0, xend=w[2], yend=w[3], size=0.5), 
+                   arrow = arrow(length = unit(0.3, "cm")), colour = "black") + 
+      geom_abline(intercept=-wPredict[1]/wPredict[3], slope=-wPredict[2]/wPredict[3], color='blue', linetype="dashed", size=0.8) +     
+      geom_segment(aes(x = 0, y = 0, xend=wPredict[2], yend=wPredict[3], size=0.5), 
+                   arrow = arrow(length = unit(0.3, "cm")), colour = "blue") 
+    p
+  }
+}
+
+
+lr <- function(n, showPlot=FALSE, alldata=getAllData(n)) {
+  train <- alldata$train
+  test <- alldata$test
+  w <- as.matrix(alldata$w)
+  i <- 0
+  errorCount <- n
+  
+  wPredict <- getW(train)
+  
+  trainError <- getErrorRateLR(test, wPredict)
+  if (showPlot) {
+    p <- printPlotLR(train, w, wPredict)
+    print(p)
+  }  
+  
+  cat(paste0('--------------------------\n')) 
+  testError <- getErrorRateLR(train, wPredict)
+  cat(paste0('wPredict: \n')) 
+  print(wPredict)
+  cat(paste0('\nw: \n')) 
+  print(w)  
+  c(trainError=trainError, testError=testError, wPredict)
+}
+
+
+n<-100
+lr(n, alldata=getAllData(n))
+lr(n, showPlot=TRUE)
+results <- t(sapply(1:100, function(i) lr(n)));summary(results)
+
+
+lrPla <- function(n, showPlot=FALSE, step=FALSE, alldata=getAllData(n)) {
+  result <- lr(n, alldata=alldata, showPlot=showPlot)
+  cat(paste0('--------------------------\n')) 
+  wInitial <- result[3:5]
+  cat(paste0('wInitial: \n')) 
+  print(wInitial)  
+  cat(paste0('\n')) 
+  pla(n, alldata=alldata, showPlot=showPlot, step=step, wInitial=as.matrix(wInitial))
+}
+
+n<-10
+lrPla(n)
+lrPla(n, showPlot=TRUE, step=TRUE)
+
+results <- t(sapply(1:100, function(i) {
+  cat(paste0('===================', i, '===================\n'))
+  lrPla(n)
+}));summary(results)
+
+#Nonlinear Transformation
+#In these problems, we again apply Linear Regression for classification. Consider the
+#target function:
+#  f(x1, x2) = sign(x2 1 + x2 2 − 0.6)
+#Generate a training set of N = 1000 points on X = [−1, 1] × [−1, 1] with a uniform
+#probability of picking each x ∈ X . Generate simulated noise by flipping the sign of
+#the output in a randomly selected 10% subset of the generated training set
+
+getLabel <- function(rawdata) {
+  r <- 0.6
+  result <- apply(rawdata, 1, function(row) row["x1"]^2+row["x2"]^2-0.6)
+  n <- nrow(rawdata)
+  label <- ifelse(result>=0, 1, -1)
+  sampleIndex <- sample(n, round(0.1*n))
+  label[sampleIndex] <- -label[sampleIndex]
+  label 
+}
+
+getOriginData <- function(n) {
+  dataLength <- round(n*1.5)
+  rawdata <- data.frame(x0=1, x1=runif(dataLength,-1,1), x2=runif(dataLength,-1,1))
+  label <- getLabel(rawdata)
+  data <- cbind(rawdata, label)
+  list(train=data[1:n,], test=data[(n+1):dataLength,])
+}
+
+getExtendData <- function(n) {
+  dataLength <- round(n*1.5)
+  x1=runif(dataLength,-1,1)
+  x2=runif(dataLength,-1,1)
+  rawdata <- data.frame(x0=1, x1=x1, x2=x2)
+  label <- getLabel(rawdata)
+  rawdata <- data.frame(x0=1, x1=x1, x2=x2, x3=x1*x2, x4=x1^2, x5=x2^2)
+  data <- cbind(rawdata, label)
+  list(train=data[1:n,], test=data[(n+1):dataLength,])
+}
+
+gg_circle <- function(r, xc, yc, color="black", fill=NA, ...) {
+  x <- xc + r*cos(seq(0, pi, length.out=100))
+  ymax <- yc + r*sin(seq(0, pi, length.out=100))
+  ymin <- yc + r*sin(seq(0, -pi, length.out=100))
+  annotate("ribbon", x=x, ymin=ymin, ymax=ymax, color=color, fill=fill, ...)
+}
+
+printPlotNLR <- function(data, wPredict) {
+  if (ncol(data)==4) {
+    print(wPredict[1])
+    print(wPredict[2])
+    print(wPredict[3])
+    p <- ggplot(data, aes(x=x1, y=x2, colour = factor(label), shape = factor(label), size=1)) 
+    p <- p + 
+      theme(legend.position = "none") + 
+      xlim(-1, 1) + ylim(-1, 1)
+    p <- p + geom_point() + 
+      gg_circle(r=sqrt(0.6), xc=0, yc=0) +
+      geom_abline(intercept=-wPredict[1]/wPredict[3], slope=-wPredict[2]/wPredict[3], color='blue', linetype="dashed", size=0.8) +     
+      geom_segment(aes(x = 0, y = 0, xend=wPredict[2], yend=wPredict[3], size=0.5), 
+                   arrow = arrow(length = unit(0.3, "cm")), colour = "blue") 
+    p
+  }
+}
+
+nlr <- function(n, showPlot=FALSE, alldata=getOriginData(n)) {
+  train <- alldata$train
+  test <- alldata$test
+  i <- 0
+  errorCount <- n
+  
+  wPredict <- getW(train)
+  trainError <- getErrorRateLR(test, wPredict)
+  if (showPlot) {
+    p <- printPlotNLR(train, wPredict)
+    print(p)
+  }  
+  
+  cat(paste0('--------------------------\n')) 
+  testError <- getErrorRateLR(train, wPredict)
+  cat(paste0('wPredict: \n')) 
+  print(wPredict)
+  c(trainError=trainError, testError=testError, wPredict)
+}
+
+n<-100
+alldata<-getOriginData(n)
+result <- nlr(n, alldata=alldata)
+nlr(n, showPlot=TRUE, alldata=alldata)
+
+results <- t(sapply(1:100, function(i) {
+  cat(paste0('===================', i, '===================\n'))
+  nlr(n)
+}));summary(results)
+
+n<-1000
+alldata<-getExtendData(n)
+result <- nlr(n, alldata=alldata)
+result
+wPredict <- -result[3:8]/result[3]
+wPredict
+getErrorRateLR(alldata$train, wPredict)
+getErrorRateLR(alldata$test, wPredict)
+
+
+results <- t(sapply(1:1000, function(i) {
+  cat(paste0('===================', i, '===================\n'))
+  nlr(n, alldata=getExtendData(n))
+}));summary(results)
+  
+
+# Hoeffding Inequality
+#Run a computer simulation for flipping 1,000 virtual fair coins. Flip each coin independently 10 times. Focus on 3 coins as follows: c1 is the first coin flipped, crand is a
+#coin chosen randomly from the 1,000, and cmin is the coin which had the minimum
+#frequency of heads (pick the earlier one in case of a tie). Let ν1, νrand, and νmin be
+#the fraction of heads obtained for the 3 respective coins out of the 10 tosses
+
+flipCoinDis <- function(n) {
+  sapply(0:n, function(k) choose(n,k)*(1/2)^k*(1/2)^(n-k))
+}
+
+flipCoinsDis <- function(n, coinDis) {
+  sapply(1:length(coinDis), function(k) choose(n,k)*(coinDis[k])^k*(1/2)^(n-k))
+}
+
+
+flipCoin <- function(k) {
+  sum(sapply(1:k, function(k) sample(2, 1)-1))/k
+}
+
+
+flipCoins <- function(n, k) {
+  sapply(1:n, function(i) flipCoin(k))
+}
+
+threeCoins <- function(coins) {
+  c(firstCoin=coins[1], minCoin=min(coins), ranCoin=coins[sample(length(coins),1)] )
+}
+
+coins <- flipCoins(100,10)
+threeCoins(coins)
+
+expCoins <- function(m, n, k) {
+  t(sapply(1:m, function(i) {
+    print(i)
+    coins <- flipCoins(n, k)
+    threeCoins(coins)
+  }))
+}
+
+exps <- expCoins(10000, 1000, 10)
+dim(exps)
+summary(exps)
+library(reshape)
+exps1 <- melt(as.data.frame(exps))
+
+library(ggplot2)
+ggplot(exps1, aes(x=value)) + 
+  geom_histogram(binwidth = 0.2, fill = "steelblue")  + 
+  facet_grid(.~variable,scale = "free") 
 
 
 

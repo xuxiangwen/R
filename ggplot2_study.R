@@ -169,7 +169,7 @@ p <- p + layer(geom = "bar", geom_params = list(fill = "steelblue"), stat = "bin
 p
 
 ## 应用“快捷函数”，得到与上例相同的图形
-p + geom_histogram(binwidth = 0.2, fill = "steelblue") +
+p + geom_histogram(binwidth = 0.2, fill = "steelblue") 
 
 ## 在用ggplot创建的图形对象上添加图层
 ggplot(msleep, aes(sleep_rem/sleep_total, awake)) + geom_point()

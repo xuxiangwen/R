@@ -1,0 +1,10 @@
+<video id="live_video" autoplay width="200" height="200" style="position:absolute;top:0;left:0;z-index:100;cursor:move;" draggable="true"></video>
+<script type="text/javascript">
+navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+window.URL = window.URL || window.webkitURL;
+
+navigator.getUserMedia({video: true}, function(localMediaStream) { 
+	video = document.getElementById("live_video");
+    video.src = window.URL.createObjectURL(localMediaStream);
+  }, function(error) {console.log(error);});
+</script>
