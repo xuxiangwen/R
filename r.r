@@ -4120,6 +4120,7 @@ model <- mx.model.FeedForward.create(lro, X=train.x, y=train.y, ctx=mx.cpu(), nu
 
 #PLA: Perceptron Learning Algorithm
 library(dplyr)
+library(ggplot2)
 update <- function(w, error) {
   errorCount <- nrow(error)
   errorIndex <- 0
@@ -4174,7 +4175,6 @@ printPlot <- function(data, wTarget, wT, wT1, error, errorIndex, iteration) {
   p <- p + ggtitle(paste0("Iteration=", iteration, " Error Count=", nrow(error))) +
     theme(legend.position = "none") + 
     xlim(-2, 2) + ylim(-2, 2)
-  print(wTarget)
   p <- p + geom_point() + 
     geom_abline(intercept=-wTarget[1]/wTarget[3], slope=-wTarget[2]/wTarget[3], color='black', linetype="dashed", size=0.8) + 
     geom_segment(aes(x = 0, y = 0, xend=wTarget[2], yend=wTarget[3], size=0.5), 
@@ -4194,7 +4194,6 @@ printOriginPlot <- function(data, wTarget) {
   p <- ggplot(data, aes(x=x1, y=x2, colour = factor(label), shape = factor(label))) 
   p <- p + theme(legend.position = "none") + 
     xlim(-2, 2) + ylim(-2, 2)
-  print(wTarget)
   p <- p + geom_point() + 
     geom_abline(intercept=-wTarget[1]/wTarget[3], slope=-wTarget[2]/wTarget[3], color='black', linetype="dashed", size=0.8) + 
     geom_segment(aes(x = 0, y = 0, xend=wTarget[2], yend=wTarget[3]), 
@@ -4217,7 +4216,7 @@ pla <- function(n, step=FALSE, showPlot=FALSE, alldata=getAllData(n), wInitial=a
   if (step) {
     cat ("Press [enter] to continue")
     line <- readline()   
-    if (line=="q") return c(iteration=0, errorRate=0)
+    #if (line=="q") return c(iteration=0, errorRate=0)
   }    
   while (errorCount>0) {
    
@@ -4511,6 +4510,121 @@ ggplot(exps1, aes(x=value)) +
   facet_grid(.~variable,scale = "free") 
 
 
+getP <- function(e, n, dvc) {
+  4*(2*n)^dvc*exp(-1/8*e^2*n)
+}
 
+n =1000
+getP(0.1, 40000, 3)
+getP(0.05, 460000, 10)
 
+dvc=10
+e=0.05
+n=400000
+(2*n)^dvc
+exp(-1/8*e^2*n)
+
+n = 5
+dvc = 50
+epsion = 0.05
+getOriginalVC <- function(n, dvc,epsion) {
+  sqrt(8/n*log(4*(2*n)^dvc/epsion))
+}
+getRademacher <- function(n, dvc,epsion) {
+  sqrt(2/n*log(2*n*n^dvc))+sqrt(2/n*log(1/epsion)) + 1/n
+}
+getParrondo <- function(n, dvc,epsion) {
+  sqrt(1/n*(2*epsion + log(6*(2*n)^dvc/epsion)))
+}
+getDevroye <- function(n, dvc,epsion) {
+  sqrt(1/(2*n)*(4*epsion*(1+epsion)+log(4*n^(2*dvc)
+                                        )
+                )
+       )
+}
+getOriginalVC(n, dvc, epsion)
+getRademacher(n, dvc, epsion)
+getParrondo(n, dvc, epsion)
+getDevroye(n, dvc, epsion)
+
+f <- function(a) {
+  x = (-10:10)/10
+  sqrt(sum((a*x - sin(pi*x))^2))
+}
+f(0)
+f(0.79)
+f(1.07)
+f(1.58)
+
+library(dplyr)
+library(ggplot2)
+vm <- read.csv("C:/xujian/projects/lf/VerticaMonitor.csv", header=T, sep=",", stringsAsFactors=T, strip.white=T)
+head(vm)
+p <- ggplot(vm, aes(Environment, Duration_Time)) + geom_boxplot()
+p
+data1 = vm %>% filter(Environment=='DEV-AVG')
+data2 = vm %>% filter(Environment=='DEV-AVG')
+data3 = vm %>% filter(Environment=='DEV-AVG')
+data4 = vm %>% filter(Environment=='DEV-AVG')
+
+a <- function(sigma, d, N) {
+  sigma^2*(1-(d+1)/N)
+}
+a(0.1, 8, 10)
+a(0.1, 8, 25)
+a(0.1, 8, 45)
+a(0.1, 8, 100)
+a(0.1, 8, 500)  
+a(0.1, 8, 1000) 
+
+updateUV <- function(u, v, rate) {
+  uNew <- u - rate*2*(exp(v)+2*v*exp(-u))*(u*exp(v)-2*v*exp(-u))
+  vNew <- v - rate*2*(u*exp(v)-2*exp(-u))*(u*exp(v)-2*v*exp(-u))
+  c(uNew, vNew)
+}
+
+updateU <- function(u, v, rate) {
+  uNew <- u - rate*2*(exp(v)+2*v*exp(-u))*(u*exp(v)-2*v*exp(-u))
+  uNew
+}
+
+updateV <- function(u, v, rate) {
+  vNew <- v - rate*2*(u*exp(v)-2*exp(-u))*(u*exp(v)-2*v*exp(-u))
+  vNew
+}
+
+uv <- updateUV(1, 1, 0.1)
+uv
+uv[1]
+uv[2]
+
+error <- function(u, v) {
+  (u*exp(v)-2*v*exp(-u))^2
+}
+error(0.0001,0.0001)
+
+gadUV <- function() {
+  e <- 1 
+  u <- 1
+  v <- 1
+  rate <- 0.1
+  i <- 0
+  while (e>=10^(-14) && i<=30) {
+    i <- i + 1
+    print(i)
+    #uv <- updateUV(u, v, rate)
+    #u <- uv[1]
+    #v <- uv[2]
+    u <- updateU(u, v, rate)
+    v <- updateV(u, v, rate)
+    e <- error(u, v)
+    print(paste(u, v))
+    print(e)
+  }  
+  i
+}
+gadUV()
+results <-sapply(1:10, function(i) gadUV())
+results
+summary(results)
 
