@@ -257,3 +257,33 @@ lm(y~x,date=d)
 #QR分解
 X<-matrix(c(rep(1,5), x), ncol=2)
 Xplus <- qr(X); Xplus
+
+
+a <- matrix(
+  c(0.39268236,  0.13598688,  0.47133076,
+    0.3211529,   0.04117066,  0.63767644,
+    0.31714176,  0.13538255,  0.54747569), ncol=3)
+colSums(a)
+ei <- eigen(a)
+a %*% ei$vectors
+ei
+ei$vectors %*% diag(ei$values)
+p <- ei$vectors %*% diag(c(1, 0, 0)) %*% t(ei$vectors)
+p
+rowSums(p)
+colSums(p)
+
+markov_chain<- function(p, initial_status, iteration) {
+  if (iteration==0)
+    result <- initial_status
+  else
+    result <- markov_chain(p, initial_status, iteration-1) %*% p
+  cat(c(iteration, result, "\n"))
+  result   
+}
+
+
+initial_status <- c(0.41692079,  0.21327284,  0.36980637)
+markov_chain(a, initial_status, 100)
+initial_status <- c(0.10663951,  0.82543017,  0.06793032)
+markov_chain(p, initial_status, 100)
