@@ -4612,11 +4612,11 @@ gadUV <- function() {
   while (e>=10^(-14) && i<=30) {
     i <- i + 1
     print(i)
-    #uv <- updateUV(u, v, rate)
-    #u <- uv[1]
-    #v <- uv[2]
-    u <- updateU(u, v, rate)
-    v <- updateV(u, v, rate)
+    uv <- updateUV(u, v, rate)
+    u <- uv[1]
+    v <- uv[2]
+    #u <- updateU(u, v, rate)
+    #v <- updateV(u, v, rate)
     e <- error(u, v)
     print(paste(u, v))
     print(e)
